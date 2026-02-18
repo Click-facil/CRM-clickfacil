@@ -22,6 +22,7 @@ export function DataSettings({ onReloadLeads, onClearAllLeads, totalLeads }: Dat
   const [territory, setTerritory] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [fileInputKey, setFileInputKey] = useState(Date.now()); // Chave para resetar o input
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const { toast } = useToast();
@@ -155,8 +156,7 @@ export function DataSettings({ onReloadLeads, onClearAllLeads, totalLeads }: Dat
       // Limpar
       setFile(null);
       setTerritory('');
-      const fileInput = document.getElementById('csv-file-upload') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
+      setFileInputKey(Date.now()); // Reseta o input de arquivo da forma correta
       
       setUploadStatus('Concluído! Recarregando...');
       
@@ -262,6 +262,7 @@ export function DataSettings({ onReloadLeads, onClearAllLeads, totalLeads }: Dat
           <div className="space-y-2">
             <Label>Arquivo CSV *</Label>
             <input
+              key={fileInputKey} // Adiciona a key para permitir o reset
               id="csv-file-upload"
               type="file"
               accept=".csv"
