@@ -11,7 +11,8 @@ import {
   query, 
   where, 
   orderBy,
-  Timestamp 
+  Timestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Lead, LeadStatus } from '@/types/lead';
@@ -156,16 +157,46 @@ export const firebaseDB = {
   },
 
   // Importar múltiplos leads (do CSV)
-  async importLeads(leads: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<number> {
-    let imported = 0;
-    
-    for (const lead of leads) {
-      const id = await this.addLead(lead);
-      if (id) imported++;
+  async importLeads(
+    leads: Lead[],
+    onProgress?: (progress: number) => void
+  ): Promise<number> {
+    if (!leads || leads.length === 0) {
+      return 0;
     }
-    
-    console.log(`✅ ${imported} leads importados de ${leads.length}`);
-    return imported;
+
+    const totalLeads = leads.length;
+    let processedCount = 0;
+    const chunkSize = 400; // Limite seguro para operações em lote do Firebase
+
+    for (let i = 0; i < totalLeads; i += chunkSize) {
+      const batch = writeBatch(db);
+      const chunk = leads.slice(i, i + chunkSize);
+
+      for (const lead of chunk) {
+        // O ID consistente é gerado no DataSettings.tsx
+        const docRef = doc(leadsCollection, lead.id);
+        
+        const firestoreLead = {
+          ...leadToFirestore(lead),
+          id: lead.id,
+        };
+        
+        // Usa 'set' com 'merge: true' para CRIAR ou ATUALIZAR o lead
+        batch.set(docRef, firestoreLead, { merge: true });
+      }
+
+      await batch.commit();
+      processedCount += chunk.length;
+
+      if (onProgress) {
+        const progress = Math.round((processedCount / totalLeads) * 100);
+        onProgress(progress);
+      }
+    }
+
+    console.log(`✅ ${processedCount} leads importados/atualizados de ${totalLeads}`);
+    return processedCount;
   },
 
   // Estatísticas por território

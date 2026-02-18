@@ -1,6 +1,7 @@
 // src/components/settings/DataSettings.tsx - SEM PROGRESS BAR (FIX)
 
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,6 +23,7 @@ export function DataSettings({ onReloadLeads, onClearAllLeads, totalLeads }: Dat
   const [territory, setTerritory] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [fileInputKey, setFileInputKey] = useState(Date.now()); // Chave para resetar o input
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -103,6 +105,7 @@ export function DataSettings({ onReloadLeads, onClearAllLeads, totalLeads }: Dat
     setIsUploading(true);
     setErrorMessage('');
     setUploadStatus('Lendo arquivo...');
+    setUploadProgress(0);
 
     try {
       console.log('🔄 Iniciando importação...');
@@ -130,17 +133,28 @@ export function DataSettings({ onReloadLeads, onClearAllLeads, totalLeads }: Dat
         throw new Error('Nenhum lead válido encontrado no CSV');
       }
       
-      const leadsComTerritorio = leads.map(lead => ({
-        ...lead,
-        territory: territory,
-      }));
+      const leadsComTerritorio = leads.map(lead => {
+        // Gera um ID consistente para garantir a atualização em vez de duplicação
+        const idConsistente = (lead.companyName.trim() + territory)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+
+        return {
+          ...lead,
+          id: idConsistente, // Sobrescreve o ID temporário do CSV
+          territory: territory,
+        };
+      });
       
       setUploadStatus('Enviando para Firebase...');
       console.log('⬆️ Importando para Firebase...');
       
       let importados = 0;
       try {
-        importados = await firebaseDB.importLeads(leadsComTerritorio);
+        const onProgress = (progress: number) => {
+          setUploadProgress(progress);
+        };
+        importados = await firebaseDB.importLeads(leadsComTerritorio, onProgress);
       } catch (fbError: any) {
         console.error('❌ Erro no Firebase:', fbError);
         throw new Error(`Erro ao salvar no banco: ${fbError.message}`);
@@ -179,6 +193,7 @@ export function DataSettings({ onReloadLeads, onClearAllLeads, totalLeads }: Dat
       
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -285,10 +300,13 @@ export function DataSettings({ onReloadLeads, onClearAllLeads, totalLeads }: Dat
           </div>
 
           {/* Status */}
-          {uploadStatus && (
+          {isUploading && (
             <Alert>
               <Loader2 className="h-4 w-4 animate-spin" />
-              <AlertDescription>{uploadStatus}</AlertDescription>
+              <AlertDescription>
+                {uploadStatus} {uploadProgress > 0 && `(${uploadProgress}%)`}
+              </AlertDescription>
+              <Progress value={uploadProgress} className="w-full mt-2" />
             </Alert>
           )}
 
