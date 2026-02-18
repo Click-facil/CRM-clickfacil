@@ -1,293 +1,202 @@
-// src/components/pipeline/LeadCard.tsx - VERSÃO PROFISSIONAL COMPLETA
+// src/components/pipeline/Pipeline.tsx - COM NAVEGAÇÃO FIXA
 
-import { Lead } from '@/types/lead';
-import { 
-  Building2, 
-  Globe, 
-  AlertTriangle, 
-  XCircle,
-  MessageCircle,
-  Mail,
-  Instagram,
-  MapPin,
-  MoreVertical,
-  Trash2,
-  Eye,
-  Phone,
-  ExternalLink,
-  TrendingUp,
-  Calendar
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
+import { Lead, PIPELINE_COLUMNS, LeadStatus } from '@/types/lead';
+import { LeadCard } from './LeadCard';
+import { Plus, ArrowLeft, ArrowRight, Filter } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useRef, useState } from 'react';
+import { Input } from '@/components/ui/input';
 
-interface LeadCardProps {
-  lead: Lead;
-  onView: () => void;
-  onStageChange: (stage: Lead['stage']) => void;
-  onDelete: () => void;
+interface PipelineProps {
+  leads: Lead[];
+  onViewLead: (lead: Lead) => void;
+  onStageChange: (leadId: string, stage: LeadStatus) => void;
+  onDeleteLead: (leadId: string) => void;
+  onAddLead: () => void;
 }
 
-const websiteQualityConfig = {
-  good: { 
-    icon: Globe, 
-    className: 'text-emerald-600',
-    bg: 'bg-emerald-50 border-emerald-200',
-    label: 'Site Profissional',
-  },
-  poor: { 
-    icon: AlertTriangle, 
-    className: 'text-amber-600',
-    bg: 'bg-amber-50 border-amber-200',
-    label: 'Site Genérico - Oportunidade!',
-  },
-  none: { 
-    icon: XCircle, 
-    className: 'text-rose-600',
-    bg: 'bg-rose-50 border-rose-200',
-    label: 'Sem Site - Grande Oportunidade!',
-  },
-};
+export function Pipeline({ 
+  leads, 
+  onViewLead, 
+  onStageChange, 
+  onDeleteLead,
+  onAddLead 
+}: PipelineProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProps) {
-  const qualityConfig = websiteQualityConfig[lead.websiteQuality || 'none'];
-  const QualityIcon = qualityConfig.icon;
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirm(`Tem certeza que deseja excluir ${lead.companyName}?`)) {
-      onDelete();
+  const scrollLeft = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -420, behavior: 'smooth' });
     }
   };
 
-  const openWhatsApp = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (lead.linkWhatsApp) {
-      window.open(lead.linkWhatsApp, '_blank');
-    } else if (lead.whatsapp) {
-      window.open(`https://wa.me/${lead.whatsapp}`, '_blank');
+  const scrollRight = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 420, behavior: 'smooth' });
     }
   };
 
-  const openEmail = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (lead.email) {
-      window.open(`mailto:${lead.email}`, '_blank');
-    }
-  };
+  const filteredLeads = leads.filter(lead => 
+    lead.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    lead.niche.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    lead.contactName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const openInstagram = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (lead.instagram) {
-      const url = lead.instagram.startsWith('http') 
-        ? lead.instagram 
-        : `https://instagram.com/${lead.instagram.replace('@', '')}`;
-      window.open(url, '_blank');
-    }
-  };
-
-  const openGoogleMaps = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (lead.googleMaps) {
-      window.open(lead.googleMaps, '_blank');
-    }
-  };
-
-  const openWebsite = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (lead.website && lead.website !== 'SEM SITE') {
-      const url = lead.website.startsWith('http') ? lead.website : `https://${lead.website}`;
-      window.open(url, '_blank');
-    }
-  };
-
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('pt-BR', { 
-      day: '2-digit', 
-      month: 'short' 
-    }).format(date);
+  const getStageValue = (stageLeads: Lead[]) => {
+    return stageLeads.reduce((sum, lead) => sum + (lead.valor || 0), 0);
   };
 
   return (
-    <div 
-      onClick={onView}
-      className="bg-white rounded-xl border-2 border-gray-100 hover:border-primary/40 hover:shadow-lg transition-all duration-200 cursor-pointer group overflow-hidden"
-    >
-      {/* Header com Empresa e Menu */}
-      <div className="p-4 border-b border-gray-50">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0 flex-1">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0 border border-primary/10">
-              <Building2 className="w-6 h-6 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="font-semibold text-base text-gray-900 truncate mb-1">
-                {lead.companyName}
-              </h4>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  {lead.niche}
-                </Badge>
-                {lead.territory && (
-                  <Badge variant="outline" className="text-xs">
-                    📍 {lead.territory}
-                  </Badge>
-                )}
-              </div>
-            </div>
+    <div className="h-[calc(100vh-120px)] flex flex-col">
+      {/* Header e Navegação - FIXO NO TOPO */}
+      <div className="flex-shrink-0 space-y-4 mb-4 sticky top-0 bg-background z-20 pb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Pipeline de Vendas</h1>
+            <p className="text-muted-foreground mt-1">
+              {filteredLeads.length} leads
+            </p>
           </div>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <button className="p-2 rounded-lg hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                <MoreVertical className="w-4 h-4 text-gray-500" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={onView}>
-                <Eye className="w-4 h-4 mr-2" />
-                Ver Detalhes
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStageChange('contacted'); }}>
-                Mover para Contatados
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStageChange('proposal_sent'); }}>
-                Mover para Proposta
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onStageChange('won'); }}>
-                Marcar como Fechado
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={handleDelete}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Excluir Lead
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button onClick={onAddLead} size="lg" className="gap-2">
+            <Plus className="w-5 h-5" />
+            Novo Lead
+          </Button>
+        </div>
+
+        {/* Busca e Setas - SEMPRE VISÍVEL */}
+        <div className="flex items-center gap-4 bg-card p-4 rounded-lg border">
+          <div className="relative flex-1 max-w-md">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar empresa, nicho..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={scrollLeft}
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            
+            <span className="text-sm text-muted-foreground px-4">
+              Use as setas ou arraste →
+            </span>
+            
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={scrollRight}
+            >
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Status do Site - DESTAQUE */}
-      <div className={cn(
-        "px-4 py-3 border-b",
-        qualityConfig.bg
-      )}>
-        <div className="flex items-center gap-2">
-          <QualityIcon className={cn('w-4 h-4', qualityConfig.className)} />
-          <span className={cn('text-sm font-medium', qualityConfig.className)}>
-            {qualityConfig.label}
-          </span>
+      {/* Pipeline Board - SCROLL PRÓPRIO */}
+      <div className="flex-1 overflow-hidden">
+        <div 
+          ref={scrollRef}
+          className="h-full overflow-x-auto overflow-y-hidden pb-4 scroll-smooth"
+        >
+          <div className="flex gap-6 h-full">
+            {PIPELINE_COLUMNS.map((column) => {
+              const columnLeads = filteredLeads.filter((lead) => lead.stage === column.id);
+              const totalValue = getStageValue(columnLeads);
+              
+              return (
+                <div key={column.id} className="flex-shrink-0 w-96 h-full">
+                  <div className="bg-card rounded-xl border-2 h-full flex flex-col">
+                    {/* Header Coluna */}
+                    <div className="flex-shrink-0 p-4 border-b">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-3 h-3 rounded-full ${column.color}`} />
+                          <h3 className="font-bold text-base">{column.title}</h3>
+                        </div>
+                        <span className="text-xs font-medium bg-primary/10 text-primary px-3 py-1 rounded-full">
+                          {columnLeads.length}
+                        </span>
+                      </div>
+                      
+                      {totalValue > 0 && (
+                        <div className="text-xs font-semibold text-emerald-600">
+                          💰 R$ {totalValue.toLocaleString('pt-BR')}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Lista - SCROLL VERTICAL */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                      {columnLeads.map((lead) => (
+                        <LeadCard
+                          key={lead.id}
+                          lead={lead}
+                          onView={() => onViewLead(lead)}
+                          onStageChange={(stage) => onStageChange(lead.id, stage)}
+                          onDelete={() => onDeleteLead(lead.id)}
+                        />
+                      ))}
+                      
+                      {columnLeads.length === 0 && (
+                        <div className="text-center py-16 text-muted-foreground">
+                          <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
+                            <div className={`w-4 h-4 rounded-full ${column.color}`} />
+                          </div>
+                          <p className="text-sm font-medium">Nenhum lead</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer */}
+                    {columnLeads.length > 0 && (
+                      <div className="flex-shrink-0 p-3 border-t bg-muted/30">
+                        <div className="text-xs text-muted-foreground text-center">
+                          🎯 {columnLeads.filter(l => l.websiteQuality === 'none' || l.websiteQuality === 'poor').length} oportunidades
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Informações de Contato */}
-      <div className="p-4 space-y-3">
-        {lead.contactName && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-medium">{lead.contactName.charAt(0).toUpperCase()}</span>
-            </div>
-            <span className="truncate">{lead.contactName}</span>
-          </div>
-        )}
-
-        {lead.phone && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Phone className="w-4 h-4 text-gray-400" />
-            <span className="truncate">{lead.phone}</span>
-          </div>
-        )}
-
-        {/* Notas/Oportunidades */}
-        {lead.notes && (
-          <div className="text-xs text-gray-500 italic line-clamp-2 bg-gray-50 p-2 rounded-md">
-            "{lead.notes}"
-          </div>
-        )}
-
-        {/* Valor Estimado */}
-        {lead.valor && lead.valor > 0 && (
-          <div className="flex items-center gap-2 text-sm font-medium text-emerald-600">
-            <TrendingUp className="w-4 h-4" />
-            R$ {lead.valor.toLocaleString('pt-BR')}
-          </div>
-        )}
-      </div>
-
-      {/* Quick Actions - GRID DE BOTÕES */}
-      <div className="px-4 pb-4">
-        <div className="grid grid-cols-2 gap-2">
-          {(lead.whatsapp || lead.linkWhatsApp) && (
-            <button 
-              onClick={openWhatsApp}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors text-sm font-medium"
-            >
-              <MessageCircle className="w-4 h-4" />
-              WhatsApp
-            </button>
-          )}
-          
-          {lead.email && (
-            <button 
-              onClick={openEmail}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors text-sm font-medium"
-            >
-              <Mail className="w-4 h-4" />
-              Email
-            </button>
-          )}
-          
-          {lead.instagram && (
-            <button 
-              onClick={openInstagram}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white transition-colors text-sm font-medium"
-            >
-              <Instagram className="w-4 h-4" />
-              Instagram
-            </button>
-          )}
-          
-          {lead.googleMaps && (
-            <button 
-              onClick={openGoogleMaps}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors text-sm font-medium"
-            >
-              <MapPin className="w-4 h-4" />
-              Maps
-            </button>
-          )}
-
-          {lead.website && lead.website !== 'SEM SITE' && (
-            <button 
-              onClick={openWebsite}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white transition-colors text-sm font-medium col-span-2"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Visitar Site
-            </button>
-          )}
+      {/* Estatísticas - FIXO NO RODAPÉ */}
+      <div className="flex-shrink-0 grid grid-cols-4 gap-4 pt-4 mt-4 border-t sticky bottom-0 bg-background">
+        <div className="bg-card p-3 rounded-lg border">
+          <div className="text-xs text-muted-foreground mb-1">Total</div>
+          <div className="text-xl font-bold">{filteredLeads.length}</div>
         </div>
-      </div>
-
-      {/* Footer com Data */}
-      <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            <span>{formatDate(lead.createdAt)}</span>
+        <div className="bg-card p-3 rounded-lg border">
+          <div className="text-xs text-muted-foreground mb-1">Oportunidades</div>
+          <div className="text-xl font-bold text-amber-600">
+            {filteredLeads.filter(l => l.websiteQuality === 'none' || l.websiteQuality === 'poor').length}
           </div>
-          <span className="text-gray-400">#{lead.id.slice(0, 8)}</span>
+        </div>
+        <div className="bg-card p-3 rounded-lg border">
+          <div className="text-xs text-muted-foreground mb-1">Valor Total</div>
+          <div className="text-xl font-bold text-emerald-600">
+            R$ {getStageValue(filteredLeads).toLocaleString('pt-BR')}
+          </div>
+        </div>
+        <div className="bg-card p-3 rounded-lg border">
+          <div className="text-xs text-muted-foreground mb-1">Conversão</div>
+          <div className="text-xl font-bold text-primary">
+            {filteredLeads.length > 0 
+              ? ((filteredLeads.filter(l => l.stage === 'won').length / filteredLeads.length) * 100).toFixed(1)
+              : '0.0'
+            }%
+          </div>
         </div>
       </div>
     </div>
