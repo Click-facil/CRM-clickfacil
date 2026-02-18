@@ -1,22 +1,57 @@
-export type LeadStage = 
-  | 'new' 
-  | 'contacted' 
-  | 'proposal_sent' 
-  | 'negotiation' 
-  | 'won' 
-  | 'lost';
+// src/types/lead.ts - COM TERRITÓRIO
 
-export type LeadSource = 
-  | 'google_business' 
-  | 'instagram' 
-  | 'facebook' 
-  | 'linkedin' 
-  | 'manual';
+export const LEAD_STAGES = {
+  NEW: 'new',
+  CONTACTED: 'contacted',
+  PROPOSAL_SENT: 'proposal_sent',
+  NEGOTIATION: 'negotiation',
+  WON: 'won',
+  LOST: 'lost',
+} as const;
+
+export type LeadStatus = typeof LEAD_STAGES[keyof typeof LEAD_STAGES];
+
+export const PIPELINE_COLUMNS = [
+  { id: LEAD_STAGES.NEW, title: 'Novos Líderes', color: 'bg-blue-500' },
+  { id: LEAD_STAGES.CONTACTED, title: 'Contatados', color: 'bg-purple-500' },
+  { id: LEAD_STAGES.PROPOSAL_SENT, title: 'Proposta Enviada', color: 'bg-orange-500' },
+  { id: LEAD_STAGES.NEGOTIATION, title: 'Em Negociação', color: 'bg-yellow-500' },
+  { id: LEAD_STAGES.WON, title: 'Fechados', color: 'bg-green-500' },
+  { id: LEAD_STAGES.LOST, title: 'Perdidos', color: 'bg-red-500' },
+] as const;
+
+export const NICHES = [
+  'Academias',
+  'Advogados',
+  'Arquitetura',
+  'Bares e Restaurantes',
+  'Clínicas Médicas',
+  'Clínicas Odontológicas',
+  'Consultórios',
+  'Contabilidade',
+  'E-commerce',
+  'Educação',
+  'Empresas de Energia Solar',
+  'Engenharia',
+  'Estética e Beleza',
+  'Farmácias',
+  'Imobiliárias',
+  'Marketing',
+  'Oficinas Mecânicas',
+  'Padarias',
+  'Pet Shops',
+  'Salões de Beleza',
+  'Tecnologia',
+  'Outros',
+] as const;
+
+export type WebsiteQuality = 'good' | 'poor' | 'none';
 
 export interface Lead {
   id: string;
   companyName: string;
   niche: string;
+  territory?: string;  // NOVO CAMPO! 'Paragominas' | 'Belém'
   contactName?: string;
   email?: string;
   phone?: string;
@@ -25,49 +60,23 @@ export interface Lead {
   facebook?: string;
   linkedin?: string;
   website?: string;
-  hasWebsite: boolean;
-  websiteQuality?: 'good' | 'poor' | 'none';
-  stage: LeadStage;
-  source: LeadSource;
+  googleMaps?: string;
+  linkWhatsApp?: string;
+  stage: LeadStatus;
+  source?: 'manual' | 'scraper' | 'import';
+  websiteQuality?: WebsiteQuality;
   notes?: string;
+  dataContato?: string;
+  valor?: number;
   createdAt: Date;
   updatedAt: Date;
-  lastContactAt?: Date;
 }
 
 export interface Script {
   id: string;
-  name: string;
+  title: string;
   content: string;
-  category: 'initial' | 'followup' | 'proposal' | 'closing';
+  category: 'initial' | 'followup' | 'proposal' | 'closing' | 'other';
   createdAt: Date;
   updatedAt: Date;
 }
-
-export interface PipelineColumn {
-  id: LeadStage;
-  title: string;
-  color: string;
-}
-
-export const PIPELINE_COLUMNS: PipelineColumn[] = [
-  { id: 'new', title: 'Novos Leads', color: 'bg-stage-new' },
-  { id: 'contacted', title: 'Contatados', color: 'bg-stage-contacted' },
-  { id: 'proposal_sent', title: 'Proposta Enviada', color: 'bg-stage-proposal' },
-  { id: 'negotiation', title: 'Em Negociação', color: 'bg-stage-negotiation' },
-  { id: 'won', title: 'Fechados', color: 'bg-stage-won' },
-  { id: 'lost', title: 'Perdidos', color: 'bg-stage-lost' },
-];
-
-export const NICHES = [
-  'Clínicas Médicas',
-  'Clínicas Odontológicas',
-  'Academias',
-  'Restaurantes',
-  'Salões de Beleza',
-  'Escritórios de Advocacia',
-  'Contabilidades',
-  'Imobiliárias',
-  'Pet Shops',
-  'Oficinas Mecânicas',
-];

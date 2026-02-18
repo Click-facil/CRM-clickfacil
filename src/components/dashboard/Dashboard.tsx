@@ -1,8 +1,8 @@
-import { Users, UserCheck, FileText, TrendingUp, Target, XCircle } from 'lucide-react';
+import { Users, FileText, TrendingUp, Target } from 'lucide-react';
 import { StatsCard } from './StatsCard';
 import { PipelineChart } from './PipelineChart';
 import { RecentLeads } from './RecentLeads';
-import { Lead } from '@/types/lead';
+import { Lead, LEAD_STAGES } from '@/types/lead';
 
 interface DashboardProps {
   leads: Lead[];
@@ -18,6 +18,9 @@ export function Dashboard({ leads, stats, onViewLead }: DashboardProps) {
   const recentLeads = [...leads]
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
     .slice(0, 5);
+
+  // Helper to safely access stats
+  const getStat = (key: string) => stats.byStage[key] || 0;
 
   return (
     <div className="space-y-8">
@@ -37,14 +40,14 @@ export function Dashboard({ leads, stats, onViewLead }: DashboardProps) {
         />
         <StatsCard
           title="Novos Leads"
-          value={stats.byStage.new}
+          value={getStat(LEAD_STAGES.NEW)}
           icon={Target}
           variant="primary"
           subtitle="Aguardando contato"
         />
         <StatsCard
           title="Propostas Enviadas"
-          value={stats.byStage.proposal_sent}
+          value={getStat(LEAD_STAGES.PROPOSAL_SENT)}
           icon={FileText}
           variant="warning"
           subtitle="Em análise"
@@ -54,7 +57,7 @@ export function Dashboard({ leads, stats, onViewLead }: DashboardProps) {
           value={`${stats.conversionRate}%`}
           icon={TrendingUp}
           variant="success"
-          subtitle={`${stats.byStage.won} fechados`}
+          subtitle={`${getStat(LEAD_STAGES.WON)} fechados`}
         />
       </div>
 
@@ -72,27 +75,27 @@ export function Dashboard({ leads, stats, onViewLead }: DashboardProps) {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-card rounded-xl p-4 card-shadow border-l-4 border-l-stage-new">
           <p className="text-sm text-muted-foreground">Novos</p>
-          <p className="text-2xl font-bold">{stats.byStage.new}</p>
+          <p className="text-2xl font-bold">{getStat(LEAD_STAGES.NEW)}</p>
         </div>
         <div className="bg-card rounded-xl p-4 card-shadow border-l-4 border-l-stage-contacted">
           <p className="text-sm text-muted-foreground">Contatados</p>
-          <p className="text-2xl font-bold">{stats.byStage.contacted}</p>
+          <p className="text-2xl font-bold">{getStat(LEAD_STAGES.CONTACTED)}</p>
         </div>
         <div className="bg-card rounded-xl p-4 card-shadow border-l-4 border-l-stage-proposal">
           <p className="text-sm text-muted-foreground">Propostas</p>
-          <p className="text-2xl font-bold">{stats.byStage.proposal_sent}</p>
+          <p className="text-2xl font-bold">{getStat(LEAD_STAGES.PROPOSAL_SENT)}</p>
         </div>
         <div className="bg-card rounded-xl p-4 card-shadow border-l-4 border-l-stage-negotiation">
           <p className="text-sm text-muted-foreground">Negociação</p>
-          <p className="text-2xl font-bold">{stats.byStage.negotiation}</p>
+          <p className="text-2xl font-bold">{getStat(LEAD_STAGES.NEGOTIATION)}</p>
         </div>
         <div className="bg-card rounded-xl p-4 card-shadow border-l-4 border-l-stage-won">
           <p className="text-sm text-muted-foreground">Fechados</p>
-          <p className="text-2xl font-bold">{stats.byStage.won}</p>
+          <p className="text-2xl font-bold">{getStat(LEAD_STAGES.WON)}</p>
         </div>
         <div className="bg-card rounded-xl p-4 card-shadow border-l-4 border-l-stage-lost">
           <p className="text-sm text-muted-foreground">Perdidos</p>
-          <p className="text-2xl font-bold">{stats.byStage.lost}</p>
+          <p className="text-2xl font-bold">{getStat(LEAD_STAGES.LOST)}</p>
         </div>
       </div>
     </div>
