@@ -3,7 +3,8 @@
 import { 
   collection, 
   doc, 
-  getDocs, 
+  getDocs,
+  getDocsFromServer, 
   getDoc, 
   addDoc, 
   updateDoc, 
@@ -76,7 +77,7 @@ export const firebaseDB = {
   async getAllLeads(): Promise<Lead[]> {
     try {
       console.log('🔍 Buscando TODOS os leads...');
-      const snapshot = await getDocs(leadsCollection);
+      const snapshot = await getDocsFromServer(leadsCollection);
       console.log(`📦 getDocs retornou ${snapshot.size} documentos`);
       const leads = snapshot.docs.map(doc => firestoreToLead(doc.id, doc.data()));
       // Ordena no cliente para não depender de índice
@@ -96,7 +97,7 @@ export const firebaseDB = {
         leadsCollection,
         where('territory', '==', territory)
       );
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocsFromServer(q);
       console.log(`📦 getDocs retornou ${snapshot.size} documentos para "${territory}"`);
       const leads = snapshot.docs.map(doc => firestoreToLead(doc.id, doc.data()));
       // Ordena no cliente
