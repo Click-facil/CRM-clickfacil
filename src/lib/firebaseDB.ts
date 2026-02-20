@@ -72,31 +72,39 @@ const firestoreToLead = (id: string, data: any): Lead => ({
 });
 
 export const firebaseDB = {
-  // Buscar todos os leads
+  // Buscar todos os leads — SEM orderBy para evitar erro de índice
   async getAllLeads(): Promise<Lead[]> {
     try {
-      const q = query(leadsCollection, orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => firestoreToLead(doc.id, doc.data()));
+      console.log('🔍 Buscando TODOS os leads...');
+      const snapshot = await getDocs(leadsCollection);
+      console.log(`📦 getDocs retornou ${snapshot.size} documentos`);
+      const leads = snapshot.docs.map(doc => firestoreToLead(doc.id, doc.data()));
+      // Ordena no cliente para não depender de índice
+      leads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      return leads;
     } catch (error) {
-      console.error('Erro ao buscar leads:', error);
-      return [];
+      console.error('❌ ERRO REAL em getAllLeads:', error);
+      throw error; // propaga o erro para o useLeads mostrar
     }
   },
 
-  // Buscar leads por território
+  // Buscar leads por território — SEM orderBy para evitar erro de índice
   async getLeadsByTerritory(territory: string): Promise<Lead[]> {
     try {
+      console.log(`🔍 Buscando leads do território: "${territory}"`);
       const q = query(
-        leadsCollection, 
-        where('territory', '==', territory),
-        orderBy('createdAt', 'desc')
+        leadsCollection,
+        where('territory', '==', territory)
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => firestoreToLead(doc.id, doc.data()));
+      console.log(`📦 getDocs retornou ${snapshot.size} documentos para "${territory}"`);
+      const leads = snapshot.docs.map(doc => firestoreToLead(doc.id, doc.data()));
+      // Ordena no cliente
+      leads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      return leads;
     } catch (error) {
-      console.error('Erro ao buscar leads por território:', error);
-      return [];
+      console.error(`❌ ERRO REAL em getLeadsByTerritory("${territory}"):`, error);
+      throw error;
     }
   },
 
@@ -105,13 +113,12 @@ export const firebaseDB = {
     try {
       const docRef = doc(leadsCollection, id);
       const docSnap = await getDoc(docRef);
-      
       if (docSnap.exists()) {
         return firestoreToLead(docSnap.id, docSnap.data());
       }
       return null;
     } catch (error) {
-      console.error('Erro ao buscar lead:', error);
+      console.error('❌ Erro ao buscar lead:', error);
       return null;
     }
   },
@@ -161,28 +168,19 @@ export const firebaseDB = {
     leads: Lead[],
     onProgress?: (progress: number) => void
   ): Promise<number> {
-    if (!leads || leads.length === 0) {
-      return 0;
-    }
+    if (!leads || leads.length === 0) return 0;
 
     const totalLeads = leads.length;
     let processedCount = 0;
-    const chunkSize = 400; // Limite seguro para operações em lote do Firebase
+    const chunkSize = 400;
 
     for (let i = 0; i < totalLeads; i += chunkSize) {
       const batch = writeBatch(db);
       const chunk = leads.slice(i, i + chunkSize);
 
       for (const lead of chunk) {
-        // O ID consistente é gerado no DataSettings.tsx
         const docRef = doc(leadsCollection, lead.id);
-        
-        const firestoreLead = {
-          ...leadToFirestore(lead),
-          id: lead.id,
-        };
-        
-        // Usa 'set' com 'merge: true' para CRIAR ou ATUALIZAR o lead
+        const firestoreLead = { ...leadToFirestore(lead), id: lead.id };
         batch.set(docRef, firestoreLead, { merge: true });
       }
 
@@ -190,8 +188,7 @@ export const firebaseDB = {
       processedCount += chunk.length;
 
       if (onProgress) {
-        const progress = Math.round((processedCount / totalLeads) * 100);
-        onProgress(progress);
+        onProgress(Math.round((processedCount / totalLeads) * 100));
       }
     }
 
@@ -203,8 +200,7 @@ export const firebaseDB = {
   async getStatsByTerritory(territory: string) {
     try {
       const leads = await this.getLeadsByTerritory(territory);
-      
-      const stats = {
+      return {
         total: leads.length,
         new: leads.filter(l => l.stage === 'new').length,
         contacted: leads.filter(l => l.stage === 'contacted').length,
@@ -213,8 +209,6 @@ export const firebaseDB = {
         won: leads.filter(l => l.stage === 'won').length,
         lost: leads.filter(l => l.stage === 'lost').length,
       };
-      
-      return stats;
     } catch (error) {
       console.error('Erro ao calcular estatísticas:', error);
       return null;
