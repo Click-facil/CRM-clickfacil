@@ -19,35 +19,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
 import { LogOut, Loader2 } from 'lucide-react';
-import { firebaseDB } from '@/lib/firebaseDB';
 
 const auth = getAuth(app);
-
-// Limpa leads antigos sem userId (roda uma única vez por sessão)
-let limpezaFeita = false;
-async function limparLeadsAntigos() {
-  if (limpezaFeita) return;
-  limpezaFeita = true;
-  try {
-    const { getDocs, collection, query, where, writeBatch, doc } = await import('firebase/firestore');
-    const { db } = await import('@/lib/firebase');
-    const snap = await getDocs(
-      query(collection(db, 'leads'), where('userId', '==', null))
-    );
-    // Também pega docs sem campo userId
-    const { getDocs: gd2 } = await import('firebase/firestore');
-    const all = await gd2(collection(db, 'leads'));
-    const semUid = all.docs.filter(d => !d.data().userId);
-    if (semUid.length === 0) return;
-    const batch = writeBatch(db);
-    // Deleta leads sem dono em vez de migrar
-    semUid.forEach(d => batch.delete(d.ref));
-    await batch.commit();
-    console.log(`🗑️ ${semUid.length} leads antigos sem dono removidos`);
-  } catch (e) {
-    console.warn('Limpeza de leads antigos falhou:', e);
-  }
-}
 
 const Index = () => {
   const [user, setUser]               = useState<User | null>(null);
@@ -60,8 +33,6 @@ const Index = () => {
     const unsub = onAuthStateChanged(auth, u => {
       setUser(u);
       setAuthLoading(false);
-      // Limpa leads sem dono quando qualquer usuário logar
-      if (u) limparLeadsAntigos();
     });
     return () => unsub();
   }, []);
@@ -80,7 +51,7 @@ const Index = () => {
     toast({ title: 'Sessão encerrada', description: 'Até logo!' });
   };
 
-  const handleViewLead  = (lead: Lead) => {
+  const handleViewLead = (lead: Lead) => {
     setSelectedLead(lead); setLeadModalMode('view'); setIsLeadModalOpen(true);
   };
   const handleAddLead = () => {
@@ -88,7 +59,10 @@ const Index = () => {
   };
   const handleSaveLead = async (data: Partial<Lead>) => {
     if (leadModalMode === 'create') {
-      await addLead({ ...data, territory: territory === 'all' ? '' : territory } as Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>);
+      await addLead({
+        ...data,
+        territory: territory === 'all' ? '' : territory,
+      } as Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>);
     } else if (selectedLead) {
       await updateLead(selectedLead.id, data);
     }

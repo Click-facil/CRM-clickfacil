@@ -1,4 +1,4 @@
-// functions/index.js — Firebase Cloud Function
+// functions/index.js — Firebase Cloud Function v2
 
 const { onRequest } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
@@ -9,10 +9,24 @@ const https = require('https');
 admin.initializeApp();
 setGlobalOptions({ region: 'us-central1' });
 
-// Usa o secret configurado via: firebase functions:secrets:set GOOGLE_MAPS_API_KEY
 const googleMapsKey = defineSecret('GOOGLE_MAPS_API_KEY');
 
-// ── Helper GET ───────────────────────────────────────────────────
+const ALLOWED_ORIGINS = [
+  'https://clickfacilcrmprospect.vercel.app',
+  'http://localhost:8080',
+  'http://localhost:5173',
+];
+
+function setCors(req, res) {
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '3600');
+}
+
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
     https.get(url, res => {
@@ -26,7 +40,6 @@ function httpsGet(url) {
   });
 }
 
-// ── Google Maps ──────────────────────────────────────────────────
 async function buscarEmpresas(nicho, cidade, estado, apiKey) {
   const query = encodeURIComponent(`${nicho} em ${cidade} ${estado} Brasil`);
   const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&language=pt-BR&region=br&key=${apiKey}`;
@@ -44,7 +57,6 @@ async function buscarDetalhes(placeId, apiKey) {
   return data.result || {};
 }
 
-// ── Helpers ──────────────────────────────────────────────────────
 function analisarSite(site) {
   if (!site) return { quality: 'none', oportunidade: true };
   const ruins = ['linktree', 'linktr.ee', 'bio.link', 'beacons.ai', 'sites.google.com'];
@@ -62,10 +74,10 @@ function formatarWhatsApp(tel) {
   return '55' + semPais;
 }
 
-// ── Cloud Function ───────────────────────────────────────────────
 exports.buscarLeads = onRequest(
-  { cors: true, secrets: [googleMapsKey] },
+  { cors: false, secrets: [googleMapsKey] },
   async (req, res) => {
+    setCors(req, res);
     if (req.method === 'OPTIONS') return res.status(204).send('');
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
@@ -75,7 +87,7 @@ exports.buscarLeads = onRequest(
       if (!nicho || !cidade) return res.status(400).json({ error: 'nicho e cidade são obrigatórios' });
       if (!idToken)          return res.status(401).json({ error: 'Token obrigatório' });
 
-      // 1. Verificar usuário
+      // Verificar usuário
       let uid;
       try {
         const decoded = await admin.auth().verifyIdToken(idToken);
@@ -85,17 +97,14 @@ exports.buscarLeads = onRequest(
         return res.status(401).json({ error: 'Token inválido. Faça login novamente.' });
       }
 
-      // 2. Pegar API Key do secret
       const apiKey = googleMapsKey.value();
       if (!apiKey) return res.status(500).json({ error: 'API Key não configurada' });
 
-      // 3. Buscar no Google Maps
       console.log(`🔍 "${nicho}" em "${cidade}, ${estado}"`);
       const lugares = await buscarEmpresas(nicho, cidade, estado, apiKey);
       const meta = Math.min(Number(maxLeads), lugares.length, 20);
       console.log(`📍 ${lugares.length} resultados, processando ${meta}`);
 
-      // 4. Salvar no Firestore
       const db = admin.firestore();
       const salvos = [];
 
@@ -136,7 +145,6 @@ exports.buscarLeads = onRequest(
 
           salvos.push(lugar.name);
           console.log(`  ✅ [${i+1}/${meta}] ${lugar.name}`);
-
           if (i < meta - 1) await new Promise(r => setTimeout(r, 150));
         } catch (e) {
           console.error(`  ❌ [${i+1}] ${lugar.name}: ${e.message}`);
