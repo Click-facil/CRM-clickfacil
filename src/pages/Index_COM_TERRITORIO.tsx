@@ -12,6 +12,8 @@ import { ProspectingPage } from '@/components/prospecting/ProspectingPage';
 import { DataSettings } from '@/components/settings/DataSettings';
 import { TerritoryFilter } from '@/components/territory/TerritoryFilter';
 import { LeadModal } from '@/components/leads/LeadModal';
+import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
 import { useLeads } from '@/hooks/useLeads';
 import { useScripts } from '@/hooks/useScripts';
 import { Lead } from '@/types/lead';
@@ -22,12 +24,60 @@ import { LogOut, Loader2 } from 'lucide-react';
 
 const auth = getAuth(app);
 
-// Componente interno — só renderiza quando há usuário logado
-// Isso garante que todo estado é zerado ao trocar de conta
+const CHECKLIST_INITIAL = [
+  { id: 'search',   label: 'Buscar seus primeiros leads',     desc: 'Vá para Prospecção e faça uma busca', done: false },
+  { id: 'pipeline', label: 'Explorar o Pipeline',             desc: 'Veja como organizar seus leads', done: false },
+  { id: 'script',   label: 'Criar um roteiro de abordagem',   desc: 'Vá para Roteiros e crie um', done: false },
+  { id: 'proposal', label: 'Gerar uma proposta',              desc: 'Use um roteiro para gerar proposta', done: false },
+];
+
 function AppContent({ user }: { user: User }) {
-  const [activeTab, setActiveTab]   = useState('dashboard');
-  const [territory, setTerritory]   = useState('all');
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [territory, setTerritory] = useState('all');
   const { toast } = useToast();
+
+  // Onboarding — só aparece na primeira vez
+  const onboardingKey = `onboarding_done_${user.uid}`;
+  const checklistKey  = `checklist_${user.uid}`;
+
+  const [showOnboarding, setShowOnboarding] = useState(
+    () => !localStorage.getItem(onboardingKey)
+  );
+  const [showChecklist, setShowChecklist] = useState(
+    () => !localStorage.getItem(`checklist_dismissed_${user.uid}`)
+  );
+  const [checklist, setChecklist] = useState(() => {
+    try {
+      const saved = localStorage.getItem(checklistKey);
+      return saved ? JSON.parse(saved) : CHECKLIST_INITIAL;
+    } catch { return CHECKLIST_INITIAL; }
+  });
+
+  const closeOnboarding = () => {
+    localStorage.setItem(onboardingKey, '1');
+    setShowOnboarding(false);
+  };
+
+  const dismissChecklist = () => {
+    localStorage.setItem(`checklist_dismissed_${user.uid}`, '1');
+    setShowChecklist(false);
+  };
+
+  const markChecklistDone = (id: string) => {
+    setChecklist(prev => {
+      const updated = prev.map(i => i.id === id ? { ...i, done: true } : i);
+      localStorage.setItem(checklistKey, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    // Marca checklist automaticamente
+    if (tab === 'prospecting') markChecklistDone('search');
+    if (tab === 'pipeline')    markChecklistDone('pipeline');
+    if (tab === 'scripts')     markChecklistDone('script');
+  };
 
   const { leads, loading, addLead, updateLead, updateLeadStage,
     deleteLead, getLeadStats, recarregarLeads } = useLeads({ territory });
@@ -62,6 +112,13 @@ function AppContent({ user }: { user: User }) {
     setSelectedLead(null);
   };
 
+  // Marca proposta como feita quando usuário estiver na aba scripts e tiver leads
+  useEffect(() => {
+    if (activeTab === 'scripts' && leads.length > 0) {
+      markChecklistDone('proposal');
+    }
+  }, [activeTab, leads.length]);
+
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center">
@@ -73,7 +130,8 @@ function AppContent({ user }: { user: User }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
+
       <div className="md:ml-64 pt-14 md:pt-0">
         <div className="sticky top-0 z-20 px-4 md:px-8 py-2 md:py-3 border-b bg-card/95 backdrop-blur-sm flex items-center justify-between gap-3 flex-wrap">
           <TerritoryFilter territory={territory} onTerritoryChange={setTerritory} />
@@ -87,6 +145,7 @@ function AppContent({ user }: { user: User }) {
             </Button>
           </div>
         </div>
+
         <main className="px-4 md:px-8 py-4 md:py-8">
           {activeTab === 'dashboard'   && <Dashboard leads={leads} stats={stats} onViewLead={handleViewLead} />}
           {activeTab === 'pipeline'    && (
@@ -104,6 +163,25 @@ function AppContent({ user }: { user: User }) {
           )}
         </main>
       </div>
+
+      {/* Onboarding modal — só na primeira vez */}
+      {showOnboarding && (
+        <OnboardingModal
+          userName={user.email?.split('@')[0] || ''}
+          onClose={closeOnboarding}
+          onGoTo={handleTabChange}
+        />
+      )}
+
+      {/* Checklist flutuante */}
+      {showChecklist && !showOnboarding && (
+        <OnboardingChecklist
+          items={checklist}
+          onDismiss={dismissChecklist}
+          onGoTo={handleTabChange}
+        />
+      )}
+
       <LeadModal lead={selectedLead} isOpen={isLeadModalOpen}
         onClose={() => { setIsLeadModalOpen(false); setSelectedLead(null); }}
         onSave={handleSaveLead} mode={leadModalMode} />
@@ -111,9 +189,6 @@ function AppContent({ user }: { user: User }) {
   );
 }
 
-// Componente raiz — controla auth e renderiza AppContent com key={uid}
-// A prop key={uid} força React a destruir e recriar AppContent ao trocar de conta
-// garantindo que ZERO estado do usuário anterior sobrevive
 const Index = () => {
   const [user, setUser]               = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -141,9 +216,6 @@ const Index = () => {
 
   return (
     <>
-      {/* key={user.uid} é a correção definitiva:
-          React destrói e recria AppContent completamente ao trocar de conta,
-          zerando todo estado incluindo leads, territory, activeTab */}
       <AppContent key={user.uid} user={user} />
       <Toaster />
     </>
