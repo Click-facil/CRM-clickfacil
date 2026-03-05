@@ -1,4 +1,4 @@
-// src/pages/Index_COM_TERRITORIO.tsx - VERSÃO FINAL
+// src/pages/Index_COM_TERRITORIO.tsx
 
 import { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
@@ -22,25 +22,17 @@ import { LogOut, Loader2 } from 'lucide-react';
 
 const auth = getAuth(app);
 
-const Index = () => {
-  const [user, setUser]               = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab]     = useState('dashboard');
-  const [territory, setTerritory]     = useState('all');
+// Componente interno — só renderiza quando há usuário logado
+// Isso garante que todo estado é zerado ao trocar de conta
+function AppContent({ user }: { user: User }) {
+  const [activeTab, setActiveTab]   = useState('dashboard');
+  const [territory, setTerritory]   = useState('all');
   const { toast } = useToast();
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, u => {
-      setUser(u);
-      setAuthLoading(false);
-    });
-    return () => unsub();
-  }, []);
 
   const { leads, loading, addLead, updateLead, updateLeadStage,
     deleteLead, getLeadStats, recarregarLeads } = useLeads({ territory });
-
   const { scripts, addScript, updateScript, deleteScript } = useScripts();
+
   const [selectedLead, setSelectedLead]       = useState<Lead | null>(null);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [leadModalMode, setLeadModalMode]     = useState<'view' | 'edit' | 'create'>('view');
@@ -70,17 +62,6 @@ const Index = () => {
     setSelectedLead(null);
   };
 
-  if (authLoading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-3" />
-        <p className="text-muted-foreground text-sm">Carregando...</p>
-      </div>
-    </div>
-  );
-
-  if (!user) return <AuthPage onLogin={() => {}} />;
-
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center">
@@ -93,9 +74,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-
       <div className="md:ml-64 pt-14 md:pt-0">
-        {/* Header */}
         <div className="sticky top-0 z-20 px-4 md:px-8 py-2 md:py-3 border-b bg-card/95 backdrop-blur-sm flex items-center justify-between gap-3 flex-wrap">
           <TerritoryFilter territory={territory} onTerritoryChange={setTerritory} />
           <div className="flex items-center gap-3 ml-auto">
@@ -108,8 +87,6 @@ const Index = () => {
             </Button>
           </div>
         </div>
-
-        {/* Páginas */}
         <main className="px-4 md:px-8 py-4 md:py-8">
           {activeTab === 'dashboard'   && <Dashboard leads={leads} stats={stats} onViewLead={handleViewLead} />}
           {activeTab === 'pipeline'    && (
@@ -127,12 +104,49 @@ const Index = () => {
           )}
         </main>
       </div>
-
       <LeadModal lead={selectedLead} isOpen={isLeadModalOpen}
         onClose={() => { setIsLeadModalOpen(false); setSelectedLead(null); }}
         onSave={handleSaveLead} mode={leadModalMode} />
-      <Toaster />
     </div>
+  );
+}
+
+// Componente raiz — controla auth e renderiza AppContent com key={uid}
+// A prop key={uid} força React a destruir e recriar AppContent ao trocar de conta
+// garantindo que ZERO estado do usuário anterior sobrevive
+const Index = () => {
+  const [user, setUser]               = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, u => {
+      setUser(u);
+      setAuthLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  if (authLoading) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <Loader2 className="w-10 h-10 animate-spin text-primary" />
+    </div>
+  );
+
+  if (!user) return (
+    <>
+      <AuthPage onLogin={() => {}} />
+      <Toaster />
+    </>
+  );
+
+  return (
+    <>
+      {/* key={user.uid} é a correção definitiva:
+          React destrói e recria AppContent completamente ao trocar de conta,
+          zerando todo estado incluindo leads, territory, activeTab */}
+      <AppContent key={user.uid} user={user} />
+      <Toaster />
+    </>
   );
 };
 

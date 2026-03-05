@@ -1,4 +1,4 @@
-// src/hooks/useLeads.ts - MULTI-USUÁRIO COM AUTH GUARD
+// src/hooks/useLeads.ts - MULTI-USUÁRIO DEFINITIVO
 
 import { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
@@ -10,34 +10,64 @@ interface UseLeadsProps {
   territory: string;
 }
 
-// Garante que o Firebase Auth já reconheceu o usuário antes de qualquer operação
-const waitForAuth = (): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const auth = getAuth();
-    if (auth.currentUser) { resolve(auth.currentUser.uid); return; }
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) { unsub(); resolve(user.uid); }
-      else      { unsub(); reject(new Error('Não autenticado')); }
-    });
-  });
-
 export const useLeads = ({ territory }: UseLeadsProps) => {
   const [leads, setLeads]     = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUid, setCurrentUid] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const carregarLeads = async () => {
+  // Monitora mudanças de usuário — quando troca de conta, limpa leads imediatamente
+  useEffect(() => {
+    const auth = getAuth();
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        if (user.uid !== currentUid) {
+          setLeads([]);        // limpa estado imediatamente ao trocar usuário
+          setCurrentUid(user.uid);
+        }
+      } else {
+        setLeads([]);
+        setCurrentUid(null);
+      }
+    });
+    return () => unsub();
+  }, [currentUid]);
+
+  // Carrega leads quando uid ou territory mudam
+  useEffect(() => {
+    if (!currentUid) {
+      setLoading(false);
+      return;
+    }
+    carregarLeads(currentUid);
+  }, [currentUid, territory]);
+
+  const carregarLeads = async (uid?: string) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) { setLoading(false); return; }
+
+    // Garante que o uid passado bate com o usuário logado
+    if (uid && uid !== user.uid) {
+      console.warn('UID inconsistente, abortando carregamento');
+      return;
+    }
+
     setLoading(true);
     try {
-      // Espera o Auth confirmar antes de qualquer leitura no Firestore
-      await waitForAuth();
-
       const loaded = territory === 'all'
         ? await firebaseDB.getAllLeads()
         : await firebaseDB.getLeadsByTerritory(territory);
 
+      // Verifica se o usuário ainda é o mesmo após a query (evita race condition)
+      const userAposQuery = getAuth().currentUser;
+      if (!userAposQuery || userAposQuery.uid !== user.uid) {
+        console.warn('Usuário mudou durante a query, descartando resultado');
+        return;
+      }
+
       setLeads(loaded);
-      console.log(`✅ ${loaded.length} leads carregados (${territory})`);
+      console.log(`✅ ${loaded.length} leads carregados para ${user.uid.slice(0,8)}`);
     } catch (error) {
       console.error('❌ Erro ao carregar leads:', error);
       toast({
@@ -50,11 +80,9 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
     }
   };
 
-  useEffect(() => { carregarLeads(); }, [territory]);
-
   const recarregarLeads = async () => {
     await carregarLeads();
-    toast({ title: 'Leads atualizados!', description: `${leads.length} leads carregados.` });
+    toast({ title: 'Leads atualizados!' });
   };
 
   const addLead = async (newLead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -71,7 +99,7 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
       setLeads(prev => prev.map(l =>
         l.id === id ? { ...l, ...updates, updatedAt: new Date() } : l
       ));
-      toast({ title: 'Lead atualizado!', description: 'Informações salvas.' });
+      toast({ title: 'Lead atualizado!' });
     }
   };
 
