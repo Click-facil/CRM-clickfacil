@@ -104,9 +104,7 @@ export function AuthPage({ onLogin }: AuthPageProps) {
         {/* Logo */}
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-3xl">⚡</span>
-            </div>
+            <img src="/ponteiro_clickfacil.ico" alt="Click Fácil" className="w-24 h-24 object-contain" />
           </div>
           <h1 className="text-4xl font-bold">Click Fácil</h1>
           <p className="text-muted-foreground">CRM de Prospecção Inteligente</p>
