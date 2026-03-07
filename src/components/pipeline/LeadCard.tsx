@@ -43,11 +43,10 @@ const qualityConfig = {
 };
 
 export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProps) {
-  const qc = qualityConfig[lead.websiteQuality || 'none'];
+  const qc   = qualityConfig[lead.websiteQuality || 'none'];
   const QIcon = qc.icon;
 
-  const stop = (fn: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); fn(); };
-
+  const stop   = (fn: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); fn(); };
   const openUrl = (url: string) => window.open(url.startsWith('http') ? url : `https://${url}`, '_blank');
 
   const formatDate = (d: Date) =>
@@ -57,6 +56,11 @@ export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProp
     e.stopPropagation();
     if (confirm(`Excluir ${lead.companyName}?`)) onDelete();
   };
+
+  // Garante que companyName nunca aparece vazio
+  const nomeExibido = lead.companyName && lead.companyName.trim()
+    ? lead.companyName
+    : `Lead #${lead.id.slice(0, 8)}`;
 
   return (
     <div
@@ -72,11 +76,11 @@ export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProp
             </div>
             <div className="min-w-0 flex-1">
               <h4 className="font-semibold text-sm text-foreground truncate leading-tight mb-1.5">
-                {lead.companyName}
+                {nomeExibido}
               </h4>
               <div className="flex flex-wrap items-center gap-1">
                 <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                  {lead.niche}
+                  {lead.niche || 'Outros'}
                 </Badge>
                 {lead.territory && (
                   <Badge variant="outline" className="text-xs px-1.5 py-0">
@@ -93,22 +97,31 @@ export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProp
                 <MoreVertical className="w-4 h-4 text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuItem onClick={onView}>
                 <Eye className="w-4 h-4 mr-2" />Ver Detalhes
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={stop(() => onStageChange('new'))}>
+                🔵 Mover → Novos Líderes
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={stop(() => onStageChange('contacted'))}>
-                Mover → Contatados
+                🟣 Mover → Contatados
               </DropdownMenuItem>
               <DropdownMenuItem onClick={stop(() => onStageChange('proposal_sent'))}>
-                Mover → Proposta
+                🟠 Mover → Proposta Enviada
               </DropdownMenuItem>
               <DropdownMenuItem onClick={stop(() => onStageChange('negotiation'))}>
-                Mover → Negociação
+                🟡 Mover → Em Negociação
               </DropdownMenuItem>
               <DropdownMenuItem onClick={stop(() => onStageChange('won'))}>
-                ✅ Marcar como Fechado
+                🟢 Marcar como Fechado
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={stop(() => onStageChange('lost'))}>
+                🔴 Marcar como Perdido
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={stop(() => onStageChange('refused'))}>
+                ⚫ Marcar como Recusado
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
@@ -138,7 +151,7 @@ export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProp
             {lead.notes}
           </div>
         )}
-        {lead.valor > 0 && (
+        {lead.valor != null && lead.valor > 0 && (
           <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
             <TrendingUp className="w-3.5 h-3.5" />
             R$ {lead.valor.toLocaleString('pt-BR')}
@@ -146,7 +159,7 @@ export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProp
         )}
       </div>
 
-      {/* Botões de ação */}
+      {/* Botões */}
       <div className="px-4 pb-4 grid grid-cols-2 gap-2">
         {(lead.whatsapp || lead.linkWhatsApp) && (
           <button
@@ -158,7 +171,7 @@ export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProp
         )}
         {lead.googleMaps && (
           <button
-            onClick={stop(() => openUrl(lead.googleMaps))}
+            onClick={stop(() => openUrl(lead.googleMaps!))}
             className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-colors"
           >
             <MapPin className="w-3.5 h-3.5" />Maps
@@ -166,7 +179,7 @@ export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProp
         )}
         {lead.instagram && lead.instagram !== 'Nao encontrado' && (
           <button
-            onClick={stop(() => openUrl(lead.instagram.startsWith('http') ? lead.instagram : `https://instagram.com/${lead.instagram.replace('@', '')}`))}
+            onClick={stop(() => openUrl(lead.instagram!.startsWith('http') ? lead.instagram! : `https://instagram.com/${lead.instagram!.replace('@', '')}`))}
             className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-xs font-medium transition-colors"
           >
             <Instagram className="w-3.5 h-3.5" />Instagram
@@ -182,7 +195,7 @@ export function LeadCard({ lead, onView, onStageChange, onDelete }: LeadCardProp
         )}
         {lead.website && lead.website !== 'SEM SITE' && (
           <button
-            onClick={stop(() => openUrl(lead.website))}
+            onClick={stop(() => openUrl(lead.website!))}
             className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium transition-colors col-span-2"
           >
             <ExternalLink className="w-3.5 h-3.5" />Visitar Site

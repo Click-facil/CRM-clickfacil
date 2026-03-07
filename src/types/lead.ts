@@ -1,23 +1,25 @@
-// src/types/lead.ts - COM TERRITÓRIO
+// src/types/lead.ts
 
 export const LEAD_STAGES = {
-  NEW: 'new',
-  CONTACTED: 'contacted',
+  NEW:           'new',
+  CONTACTED:     'contacted',
   PROPOSAL_SENT: 'proposal_sent',
-  NEGOTIATION: 'negotiation',
-  WON: 'won',
-  LOST: 'lost',
+  NEGOTIATION:   'negotiation',
+  WON:           'won',
+  LOST:          'lost',
+  REFUSED:       'refused',  // NOVO
 } as const;
 
 export type LeadStatus = typeof LEAD_STAGES[keyof typeof LEAD_STAGES];
 
 export const PIPELINE_COLUMNS = [
-  { id: LEAD_STAGES.NEW, title: 'Novos Líderes', color: 'bg-blue-500' },
-  { id: LEAD_STAGES.CONTACTED, title: 'Contatados', color: 'bg-purple-500' },
+  { id: LEAD_STAGES.NEW,           title: 'Novos Líderes',    color: 'bg-blue-500'   },
+  { id: LEAD_STAGES.CONTACTED,     title: 'Contatados',       color: 'bg-purple-500' },
   { id: LEAD_STAGES.PROPOSAL_SENT, title: 'Proposta Enviada', color: 'bg-orange-500' },
-  { id: LEAD_STAGES.NEGOTIATION, title: 'Em Negociação', color: 'bg-yellow-500' },
-  { id: LEAD_STAGES.WON, title: 'Fechados', color: 'bg-green-500' },
-  { id: LEAD_STAGES.LOST, title: 'Perdidos', color: 'bg-red-500' },
+  { id: LEAD_STAGES.NEGOTIATION,   title: 'Em Negociação',    color: 'bg-yellow-500' },
+  { id: LEAD_STAGES.WON,           title: 'Fechados',         color: 'bg-green-500'  },
+  { id: LEAD_STAGES.LOST,          title: 'Perdidos',         color: 'bg-red-500'    },
+  { id: LEAD_STAGES.REFUSED,       title: 'Recusados',        color: 'bg-gray-500'   },
 ] as const;
 
 export const NICHES = [
@@ -51,7 +53,7 @@ export interface Lead {
   id: string;
   companyName: string;
   niche: string;
-  territory?: string;  // NOVO CAMPO! 'Paragominas' | 'Belém'
+  territory?: string;
   contactName?: string;
   email?: string;
   phone?: string;
@@ -63,7 +65,7 @@ export interface Lead {
   googleMaps?: string;
   linkWhatsApp?: string;
   stage: LeadStatus;
-  source?: 'manual' | 'scraper' | 'import';
+  source?: 'manual' | 'scraper' | 'import' | 'google_maps_api';
   websiteQuality?: WebsiteQuality;
   notes?: string;
   dataContato?: string;
