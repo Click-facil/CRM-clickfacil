@@ -1,8 +1,8 @@
-// src/components/pipeline/Pipeline.tsx - ESTILO TRELLO COM DRAG FLUIDO
+// src/components/pipeline/Pipeline.tsx
 
 import { Lead, PIPELINE_COLUMNS, LeadStatus } from '@/types/lead';
 import { LeadCard } from './LeadCard';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRef, useState, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
@@ -10,32 +10,34 @@ import { cn } from '@/lib/utils';
 
 interface PipelineProps {
   leads: Lead[];
+  leadsSemOportunidade: Lead[];
   onViewLead: (lead: Lead) => void;
   onStageChange: (leadId: string, stage: LeadStatus) => void;
   onDeleteLead: (leadId: string) => void;
   onAddLead: () => void;
   onArchiveLead: (leadId: string) => void;
+  onGoToSemOportunidade: () => void;
 }
 
-export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAddLead, onArchiveLead }: PipelineProps) {
+export function Pipeline({
+  leads, leadsSemOportunidade,
+  onViewLead, onStageChange, onDeleteLead, onAddLead,
+  onArchiveLead, onGoToSemOportunidade,
+}: PipelineProps) {
   const boardRef = useRef<HTMLDivElement>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm,    setSearchTerm]    = useState('');
+  const [draggedId,     setDraggedId]     = useState<string | null>(null);
+  const [dragOverCol,   setDragOverCol]   = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  // Drag state
-  const [draggedId,      setDraggedId]      = useState<string | null>(null);
-  const [dragOverCol,    setDragOverCol]     = useState<string | null>(null);
-  const [dragOverIndex,  setDragOverIndex]   = useState<number | null>(null);
-
-  // Scroll horizontal com mouse no board (estilo Trello)
-  const isScrolling   = useRef(false);
-  const scrollStartX  = useRef(0);
-  const scrollLeft0   = useRef(0);
+  const isScrolling  = useRef(false);
+  const scrollStartX = useRef(0);
+  const scrollLeft0  = useRef(0);
 
   const onBoardMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Só inicia scroll se clicar no board diretamente (não em card/botão)
     const target = e.target as HTMLElement;
     if (target.closest('[data-lead-card]') || target.closest('button') || target.closest('input')) return;
-    isScrolling.current = true;
+    isScrolling.current  = true;
     scrollStartX.current = e.pageX;
     scrollLeft0.current  = boardRef.current?.scrollLeft || 0;
     document.body.style.cursor = 'grabbing';
@@ -44,14 +46,10 @@ export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAdd
   const onBoardMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!isScrolling.current || !boardRef.current) return;
     e.preventDefault();
-    const dx = e.pageX - scrollStartX.current;
-    boardRef.current.scrollLeft = scrollLeft0.current - dx;
+    boardRef.current.scrollLeft = scrollLeft0.current - (e.pageX - scrollStartX.current);
   }, []);
 
-  const onBoardMouseUp = () => {
-    isScrolling.current = false;
-    document.body.style.cursor = '';
-  };
+  const onBoardMouseUp = () => { isScrolling.current = false; document.body.style.cursor = ''; };
 
   const filteredLeads = leads.filter(l =>
     (l.companyName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -61,14 +59,10 @@ export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAdd
   const getStageValue = (stageLeads: Lead[]) =>
     stageLeads.reduce((sum, l) => sum + (l.valor || 0), 0);
 
-  // ── Drag handlers ──────────────────────────────────────────────
   const handleDragStart = (e: React.DragEvent, leadId: string) => {
     setDraggedId(leadId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', leadId);
-    // Sombra fantasma mais bonita
-    const el = e.currentTarget as HTMLElement;
-    e.dataTransfer.setDragImage(el, el.offsetWidth / 2, 20);
   };
 
   const handleDragOver = (e: React.DragEvent, colId: string, index?: number) => {
@@ -83,21 +77,12 @@ export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAdd
     const id = e.dataTransfer.getData('text/plain');
     if (id && colId) {
       const lead = leads.find(l => l.id === id);
-      if (lead && lead.stage !== colId) {
-        onStageChange(id, colId as LeadStatus);
-      }
+      if (lead && lead.stage !== colId) onStageChange(id, colId as LeadStatus);
     }
-    setDraggedId(null);
-    setDragOverCol(null);
-    setDragOverIndex(null);
+    setDraggedId(null); setDragOverCol(null); setDragOverIndex(null);
   };
 
-  const handleDragEnd = () => {
-    setDraggedId(null);
-    setDragOverCol(null);
-    setDragOverIndex(null);
-  };
-
+  const handleDragEnd = () => { setDraggedId(null); setDragOverCol(null); setDragOverIndex(null); };
   const draggedLead = draggedId ? leads.find(l => l.id === draggedId) : null;
 
   return (
@@ -110,10 +95,26 @@ export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAdd
             <h1 className="text-xl md:text-2xl font-bold">Pipeline de Vendas</h1>
             <p className="text-sm text-muted-foreground">{filteredLeads.length} leads no funil</p>
           </div>
-          <Button onClick={onAddLead} className="gap-2" size="sm">
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Novo Lead</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onGoToSemOportunidade}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <Archive className="w-4 h-4" />
+              <span className="hidden sm:inline">Sem Oportunidade</span>
+              {leadsSemOportunidade.length > 0 && (
+                <span className="bg-muted text-muted-foreground text-xs px-1.5 py-0.5 rounded-full">
+                  {leadsSemOportunidade.length}
+                </span>
+              )}
+            </Button>
+            <Button onClick={onAddLead} className="gap-2" size="sm">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Novo Lead</span>
+            </Button>
+          </div>
         </div>
 
         <div className="relative">
@@ -133,12 +134,12 @@ export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAdd
         )}
       </div>
 
-      {/* Board — scroll horizontal com mouse drag estilo Trello */}
+      {/* Board */}
       <div className="flex-1 overflow-hidden -mx-2">
         <div
           ref={boardRef}
           className="h-full overflow-x-auto overflow-y-hidden px-2 pb-2 select-none"
-          style={{ scrollbarWidth: 'thin', cursor: isScrolling.current ? 'grabbing' : 'grab' }}
+          style={{ scrollbarWidth: 'thin' }}
           onMouseDown={onBoardMouseDown}
           onMouseMove={onBoardMouseMove}
           onMouseUp={onBoardMouseUp}
@@ -156,19 +157,11 @@ export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAdd
                   className="flex-shrink-0 w-[80vw] sm:w-[280px] md:w-[300px] h-full flex flex-col"
                   onDragOver={e => handleDragOver(e, column.id)}
                   onDrop={e => handleDrop(e, column.id)}
-                  onDragLeave={e => {
-                    // Só limpa se saiu da coluna de verdade
-                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                      setDragOverCol(null);
-                    }
-                  }}
+                  onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverCol(null); }}
                 >
-                  {/* Header da coluna */}
                   <div className={cn(
                     'flex-shrink-0 px-3 py-2.5 rounded-t-xl border border-b-0 transition-colors',
-                    isDragOver
-                      ? 'bg-primary/10 border-primary/40'
-                      : 'bg-muted/50 border-border'
+                    isDragOver ? 'bg-primary/10 border-primary/40' : 'bg-muted/50 border-border'
                   )}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -183,9 +176,7 @@ export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAdd
                         )}
                         <span className={cn(
                           'text-xs px-2 py-0.5 rounded-full font-semibold transition-colors',
-                          isDragOver
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-primary/10 text-primary'
+                          isDragOver ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary'
                         )}>
                           {columnLeads.length}
                         </span>
@@ -193,14 +184,10 @@ export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAdd
                     </div>
                   </div>
 
-                  {/* Área de drop + cards */}
                   <div className={cn(
                     'flex-1 overflow-y-auto rounded-b-xl border border-t-0 transition-all duration-150 p-2 space-y-2',
-                    isDragOver
-                      ? 'bg-primary/5 border-primary/40'
-                      : 'bg-muted/20 border-border'
+                    isDragOver ? 'bg-primary/5 border-primary/40' : 'bg-muted/20 border-border'
                   )}>
-                    {/* Indicador de drop no topo quando arrasta sobre coluna vazia */}
                     {isDragOver && columnLeads.length === 0 && (
                       <div className="h-20 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5 flex items-center justify-center">
                         <p className="text-xs font-medium text-primary">Soltar aqui</p>
@@ -209,7 +196,6 @@ export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAdd
 
                     {columnLeads.map((lead, index) => (
                       <div key={lead.id}>
-                        {/* Linha indicadora de posição ao arrastar */}
                         {isDragOver && dragOverIndex === index && draggedId !== lead.id && (
                           <div className="h-1 bg-primary rounded-full mx-1 mb-2 animate-pulse" />
                         )}
@@ -237,7 +223,6 @@ export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAdd
                       </div>
                     ))}
 
-                    {/* Botão + Adicionar no final de cada coluna (estilo Trello) */}
                     <button
                       onClick={onAddLead}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors mt-1"
@@ -253,7 +238,7 @@ export function Pipeline({ leads, onViewLead, onStageChange, onDeleteLead, onAdd
         </div>
       </div>
 
-      {/* Rodapé com stats */}
+      {/* Footer stats */}
       <div className="flex-shrink-0 grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 pt-3 border-t">
         <div className="text-center">
           <div className="text-xl md:text-2xl font-bold">{filteredLeads.length}</div>

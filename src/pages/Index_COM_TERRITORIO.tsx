@@ -11,7 +11,6 @@ import { ScriptsPage } from '@/components/scripts/ScriptsPage';
 import { ProspectingPage } from '@/components/prospecting/ProspectingPage';
 import { DataSettings } from '@/components/settings/DataSettings';
 import { SemOportunidadePage } from '@/components/pipeline/SemOportunidadePage';
-import { RecusadosPage } from '@/components/pipeline/RecusadosPage';
 import { TerritoryFilter } from '@/components/territory/TerritoryFilter';
 import { LeadModal } from '@/components/leads/LeadModal';
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
@@ -50,7 +49,7 @@ function AppContent({ user }: { user: User }) {
     } catch { return CHECKLIST_INITIAL; }
   });
 
-  const closeOnboarding = () => { localStorage.setItem(onboardingKey, '1'); setShowOnboarding(false); };
+  const closeOnboarding  = () => { localStorage.setItem(onboardingKey, '1'); setShowOnboarding(false); };
   const dismissChecklist = () => { localStorage.setItem(`checklist_dismissed_${user.uid}`, '1'); setShowChecklist(false); };
 
   const markChecklistDone = (id: string) => {
@@ -69,29 +68,24 @@ function AppContent({ user }: { user: User }) {
   };
 
   const {
-    leads, leadsSemOportunidade, leadsRecusados, loading,
+    leads, leadsSemOportunidade, loading,
     addLead, updateLead, updateLeadStage, deleteLead,
     arquivarLead, arquivarSemOportunidade,
     restaurarLead, deletarTodosSemOportunidade,
-    restaurarRecusado, deletarTodosRecusados,
     getLeadStats, recarregarLeads,
   } = useLeads({ territory });
 
   const { scripts, addScript, updateScript, deleteScript } = useScripts();
 
-  const [selectedLead, setSelectedLead]       = useState<Lead | null>(null);
+  const [selectedLead,    setSelectedLead]    = useState<Lead | null>(null);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
-  const [leadModalMode, setLeadModalMode]     = useState<'view' | 'edit' | 'create'>('view');
+  const [leadModalMode,   setLeadModalMode]   = useState<'view' | 'edit' | 'create'>('view');
   const stats = getLeadStats();
 
-  const handleLogout = async () => { await signOut(auth); toast({ title: 'Sessão encerrada' }); };
+  const handleLogout   = async () => { await signOut(auth); toast({ title: 'Sessão encerrada' }); };
+  const handleViewLead = (lead: Lead) => { setSelectedLead(lead); setLeadModalMode('view'); setIsLeadModalOpen(true); };
+  const handleAddLead  = () => { setSelectedLead(null); setLeadModalMode('create'); setIsLeadModalOpen(true); };
 
-  const handleViewLead = (lead: Lead) => {
-    setSelectedLead(lead); setLeadModalMode('view'); setIsLeadModalOpen(true);
-  };
-  const handleAddLead = () => {
-    setSelectedLead(null); setLeadModalMode('create'); setIsLeadModalOpen(true);
-  };
   const handleSaveLead = async (data: Partial<Lead>) => {
     if (leadModalMode === 'create') {
       await addLead({ ...data, territory: territory === 'all' ? '' : territory } as Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>);
@@ -100,6 +94,12 @@ function AppContent({ user }: { user: User }) {
     }
     setIsLeadModalOpen(false);
     setSelectedLead(null);
+  };
+
+  // Auto-refresh após prospecção — recarrega sem mostrar loading geral
+  const handleLeadsAdded = async () => {
+    await recarregarLeads();
+    toast({ title: '✅ Pipeline atualizado!', description: 'Os novos leads já aparecem no funil.' });
   };
 
   useEffect(() => {
@@ -121,7 +121,6 @@ function AppContent({ user }: { user: User }) {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         arquivadosCount={leadsSemOportunidade.length}
-        recusadosCount={leadsRecusados.length}
       />
 
       <div className="md:ml-64 pt-14 md:pt-0">
@@ -146,21 +145,35 @@ function AppContent({ user }: { user: User }) {
           {activeTab === 'pipeline' && (
             <Pipeline
               leads={leads}
+              leadsSemOportunidade={leadsSemOportunidade}
               onViewLead={handleViewLead}
               onStageChange={updateLeadStage}
               onDeleteLead={deleteLead}
               onAddLead={handleAddLead}
               onArchiveLead={arquivarLead}
+              onGoToSemOportunidade={() => handleTabChange('sem_oportunidade')}
             />
           )}
           {activeTab === 'scripts' && (
-            <ScriptsPage scripts={scripts} onAddScript={addScript}
-              onUpdateScript={updateScript} onDeleteScript={deleteScript} />
+            <ScriptsPage
+              scripts={scripts}
+              onAddScript={addScript}
+              onUpdateScript={updateScript}
+              onDeleteScript={deleteScript}
+            />
           )}
-          {activeTab === 'prospecting' && <ProspectingPage />}
+          {activeTab === 'prospecting' && (
+            <ProspectingPage
+              onLeadsAdded={handleLeadsAdded}
+              onGoToPipeline={() => handleTabChange('pipeline')}
+            />
+          )}
           {activeTab === 'settings' && (
-            <DataSettings onReloadLeads={recarregarLeads}
-              onClearAllLeads={() => {}} totalLeads={leads.length} />
+            <DataSettings
+              onReloadLeads={recarregarLeads}
+              onClearAllLeads={() => {}}
+              totalLeads={leads.length}
+            />
           )}
           {activeTab === 'sem_oportunidade' && (
             <SemOportunidadePage
@@ -170,28 +183,31 @@ function AppContent({ user }: { user: User }) {
               onDeletarTodos={deletarTodosSemOportunidade}
             />
           )}
-          {activeTab === 'recusados' && (
-            <RecusadosPage
-              leads={leadsRecusados}
-              onRestaurar={restaurarRecusado}
-              onDeletar={deleteLead}
-              onDeletarTodos={deletarTodosRecusados}
-            />
-          )}
         </main>
       </div>
 
       {showOnboarding && (
-        <OnboardingModal userName={user.email?.split('@')[0] || ''}
-          onClose={closeOnboarding} onGoTo={handleTabChange} />
+        <OnboardingModal
+          userName={user.email?.split('@')[0] || ''}
+          onClose={closeOnboarding}
+          onGoTo={handleTabChange}
+        />
       )}
       {showChecklist && !showOnboarding && (
-        <OnboardingChecklist items={checklist} onDismiss={dismissChecklist} onGoTo={handleTabChange} />
+        <OnboardingChecklist
+          items={checklist}
+          onDismiss={dismissChecklist}
+          onGoTo={handleTabChange}
+        />
       )}
 
-      <LeadModal lead={selectedLead} isOpen={isLeadModalOpen}
+      <LeadModal
+        lead={selectedLead}
+        isOpen={isLeadModalOpen}
         onClose={() => { setIsLeadModalOpen(false); setSelectedLead(null); }}
-        onSave={handleSaveLead} mode={leadModalMode} />
+        onSave={handleSaveLead}
+        mode={leadModalMode}
+      />
     </div>
   );
 }
@@ -211,13 +227,9 @@ const Index = () => {
     </div>
   );
 
-  if (!user) return (
-    <><AuthPage onLogin={() => {}} /><Toaster /></>
-  );
+  if (!user) return <><AuthPage onLogin={() => {}} /><Toaster /></>;
 
-  return (
-    <><AppContent key={user.uid} user={user} /><Toaster /></>
-  );
+  return <><AppContent key={user.uid} user={user} /><Toaster /></>;
 };
 
 export default Index;

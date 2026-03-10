@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, FileText, Search, Settings, Menu, X, Sun, Moon, Archive, XCircle } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Search, Settings, Menu, X, Sun, Moon, Archive } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   arquivadosCount?: number;
-  recusadosCount?: number;
 }
 
 const menuItems = [
@@ -36,14 +35,11 @@ function useTheme() {
   return { dark, toggle: () => setDark(v => !v) };
 }
 
-export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0, recusadosCount = 0 }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0 }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { dark, toggle } = useTheme();
 
-  const handleTabChange = (tab: string) => {
-    onTabChange(tab);
-    setMobileOpen(false);
-  };
+  const handleTabChange = (tab: string) => { onTabChange(tab); setMobileOpen(false); };
 
   const Logo = () => (
     <div className="mb-8">
@@ -60,8 +56,7 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0, recusados
   );
 
   const NavLinks = () => (
-    <nav className="flex-1 space-y-1 overflow-y-auto">
-      {/* Menu principal */}
+    <nav className="flex-1 space-y-1">
       {menuItems.map(item => {
         const Icon = item.icon;
         const isActive = activeTab === item.id;
@@ -83,14 +78,11 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0, recusados
         );
       })}
 
-      {/* Separador Arquivo */}
+      {/* Separador arquivo */}
       <div className="pt-4 pb-1">
-        <p className="text-xs text-muted-foreground/50 px-4 uppercase tracking-wider font-semibold">
-          Arquivo
-        </p>
+        <p className="text-xs text-muted-foreground/50 px-4 uppercase tracking-wider font-semibold">Arquivo</p>
       </div>
 
-      {/* Sem Oportunidade */}
       <button
         onClick={() => handleTabChange('sem_oportunidade')}
         className={cn(
@@ -108,25 +100,6 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0, recusados
           </span>
         )}
       </button>
-
-      {/* Recusados */}
-      <button
-        onClick={() => handleTabChange('recusados')}
-        className={cn(
-          'w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-150',
-          activeTab === 'recusados'
-            ? 'bg-muted text-foreground'
-            : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-        )}
-      >
-        <XCircle className="w-4 h-4 flex-shrink-0" />
-        <span className="text-sm font-medium">Recusados</span>
-        {recusadosCount > 0 && (
-          <span className="ml-auto text-xs bg-muted-foreground/20 text-muted-foreground px-1.5 py-0.5 rounded-full">
-            {recusadosCount}
-          </span>
-        )}
-      </button>
     </nav>
   );
 
@@ -138,14 +111,8 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0, recusados
       >
         {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         <span className="text-sm">{dark ? 'Tema Claro' : 'Tema Escuro'}</span>
-        <span className={cn(
-          'ml-auto w-8 h-4 rounded-full transition-colors relative flex-shrink-0',
-          dark ? 'bg-primary' : 'bg-muted-foreground/30'
-        )}>
-          <span className={cn(
-            'absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all duration-200',
-            dark ? 'left-4' : 'left-0.5'
-          )} />
+        <span className={cn('ml-auto w-8 h-4 rounded-full transition-colors relative flex-shrink-0', dark ? 'bg-primary' : 'bg-muted-foreground/30')}>
+          <span className={cn('absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all duration-200', dark ? 'left-4' : 'left-0.5')} />
         </span>
       </button>
       <div className="text-xs text-muted-foreground px-1 space-y-1">
@@ -158,22 +125,14 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0, recusados
     </div>
   );
 
-  const SidebarContent = () => (
-    <>
-      <Logo />
-      <NavLinks />
-      <Footer />
-    </>
-  );
+  const SidebarContent = () => <><Logo /><NavLinks /><Footer /></>;
 
   return (
     <>
-      {/* Desktop */}
       <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-card border-r border-border p-6 flex-col z-30">
         <SidebarContent />
       </aside>
 
-      {/* Mobile top bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-card border-b border-border flex items-center justify-between px-4 z-40">
         <div className="flex items-center gap-3">
           <button onClick={() => setMobileOpen(true)} className="p-2 rounded-lg hover:bg-muted">
@@ -191,7 +150,6 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0, recusados
         </button>
       </div>
 
-      {/* Mobile drawer */}
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />

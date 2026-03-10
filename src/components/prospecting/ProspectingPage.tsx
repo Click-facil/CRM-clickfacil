@@ -1,4 +1,4 @@
-// src/components/prospecting/ProspectingPage.tsx - COM GOOGLE MAPS API
+// src/components/prospecting/ProspectingPage.tsx
 
 import { useState } from 'react';
 import { getAuth } from 'firebase/auth';
@@ -9,18 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Search, MapPin, Loader2, CheckCircle, AlertCircle, Zap } from 'lucide-react';
+import { Search, MapPin, Loader2, CheckCircle, AlertCircle, Zap, ArrowRight } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
-// URL da sua Cloud Function — substitua pelo URL real após o deploy
 const CLOUD_FUNCTION_URL = 'https://buscarleads-35yar6pipq-uc.a.run.app';
 
-export function ProspectingPage() {
-  const [nicho, setNicho]       = useState('');
-  const [cidade, setCidade]     = useState('');
-  const [estado, setEstado]     = useState('PA');
-  const [maxLeads, setMaxLeads] = useState('20');
-  const [loading, setLoading]   = useState(false);
+interface ProspectingPageProps {
+  onLeadsAdded?: () => void;
+  onGoToPipeline?: () => void;
+}
+
+export function ProspectingPage({ onLeadsAdded, onGoToPipeline }: ProspectingPageProps) {
+  const [nicho, setNicho]         = useState('');
+  const [cidade, setCidade]       = useState('');
+  const [estado, setEstado]       = useState('PA');
+  const [maxLeads, setMaxLeads]   = useState('20');
+  const [loading, setLoading]     = useState(false);
   const [resultado, setResultado] = useState<{ total: number; message: string } | null>(null);
   const { toast } = useToast();
 
@@ -34,7 +38,6 @@ export function ProspectingPage() {
     setResultado(null);
 
     try {
-      // Pega o token do usuário logado
       const auth = getAuth();
       const user = auth.currentUser;
       if (!user) throw new Error('Você precisa estar logado');
@@ -47,11 +50,13 @@ export function ProspectingPage() {
       });
 
       const data = await response.json();
-
       if (!response.ok) throw new Error(data.error || 'Erro na busca');
 
       setResultado({ total: data.total, message: data.message });
       toast({ title: '✅ Busca concluída!', description: data.message });
+
+      // Notifica o Index para recarregar os leads automaticamente
+      onLeadsAdded?.();
 
     } catch (error: any) {
       toast({
@@ -71,7 +76,6 @@ export function ProspectingPage() {
         <p className="text-muted-foreground mt-1">Encontre leads no Google Maps com um clique</p>
       </div>
 
-      {/* Formulário */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -157,14 +161,18 @@ export function ProspectingPage() {
               <AlertDescription className="text-green-700 dark:text-green-400">
                 <strong>{resultado.message}</strong>
                 <br />
-                <span className="text-sm">Abra o Pipeline para ver os novos leads.</span>
+                <button
+                  onClick={onGoToPipeline}
+                  className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-green-700 dark:text-green-400 hover:underline"
+                >
+                  Ver no Pipeline <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </AlertDescription>
             </Alert>
           )}
         </CardContent>
       </Card>
 
-      {/* Como funciona */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Como funciona</CardTitle>
@@ -172,10 +180,10 @@ export function ProspectingPage() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-sm">
             {[
-              { n: '1', label: 'Escolha o nicho', desc: 'e a cidade alvo' },
-              { n: '2', label: 'Clique em Buscar', desc: 'o servidor trabalha por você' },
-              { n: '3', label: 'Google Maps API', desc: 'encontra as empresas' },
-              { n: '4', label: 'Leads no Pipeline', desc: 'prontos para contato', ok: true },
+              { n: '1', label: 'Escolha o nicho',    desc: 'e a cidade alvo' },
+              { n: '2', label: 'Clique em Buscar',   desc: 'o servidor trabalha por você' },
+              { n: '3', label: 'Google Maps API',    desc: 'encontra as empresas' },
+              { n: '4', label: 'Leads no Pipeline',  desc: 'prontos para contato', ok: true },
             ].map(({ n, label, desc, ok }) => (
               <div key={n} className="space-y-2">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto font-bold text-sm ${ok ? 'bg-green-100 text-green-700 dark:bg-green-900/30' : 'bg-primary/10 text-primary'}`}>
