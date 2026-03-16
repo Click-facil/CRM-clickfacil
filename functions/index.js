@@ -12,6 +12,7 @@ setGlobalOptions({ region: 'us-central1' });
 
 const googleMapsKey = defineSecret('GOOGLE_MAPS_API_KEY');
 
+// ── Rate limiting ─────────────────────────────────────────────────
 const rateLimitMap = new Map();
 const RATE_LIMIT_MAX    = 10;
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000;
@@ -28,6 +29,211 @@ function checkRateLimit(uid) {
   return true;
 }
 
+// ── Variações de busca por nicho ──────────────────────────────────
+// Cada variação gera até 20 resultados diferentes do Google Maps
+// Quanto mais variações, mais leads únicos encontrados
+const VARIACOES_NICHO = {
+  'Academias': [
+    'Academias de ginástica',
+    'Academia fitness',
+    'Musculação',
+    'CrossFit',
+    'Pilates',
+  ],
+  'Advogados': [
+    'Advogados',
+    'Escritório de advocacia',
+    'Advogado trabalhista',
+    'Advogado criminal',
+    'Consultoria jurídica',
+  ],
+  'Arquitetura': [
+    'Arquitetura',
+    'Escritório de arquitetura',
+    'Arquiteto e urbanismo',
+    'Projeto arquitetônico',
+    'Design de interiores',
+  ],
+  'Bares e Restaurantes': [
+    'Restaurantes',
+    'Bares',
+    'Lanchonetes',
+    'Churrascaria',
+    'Pizzaria',
+  ],
+  'Chaveiros': [
+    'Chaveiros',
+    'Serviço de chaveiro',
+    'Chaveiro 24 horas',
+    'Cópia de chave',
+    'Fechadura e chave',
+  ],
+  'Clínicas Médicas': [
+    'Clínicas médicas',
+    'Clínica de saúde',
+    'Consultório médico',
+    'Clínica geral',
+    'Médico especialista',
+  ],
+  'Clínicas Odontológicas': [
+    'Clínicas odontológicas',
+    'Dentista',
+    'Implante dentário',
+    'Ortodontia',
+    'Odontologia estética',
+  ],
+  'Clínicas de Estética': [
+    'Clínicas de estética',
+    'Estética facial',
+    'Estética corporal',
+    'Dermatologista',
+    'Tratamento estético',
+  ],
+  'Consultórios': [
+    'Consultórios',
+    'Consultório médico',
+    'Consultório odontológico',
+    'Consultório psicológico',
+    'Consultório nutricionista',
+  ],
+  'Contabilidade': [
+    'Contabilidade',
+    'Escritório contábil',
+    'Contador',
+    'Assessoria contábil',
+    'Contabilidade empresarial',
+  ],
+  'Desentupidoras': [
+    'Desentupidoras',
+    'Desentupimento',
+    'Hidráulica desentupimento',
+    'Desentupidora 24 horas',
+    'Limpeza de fossa',
+  ],
+  'E-commerce': [
+    'E-commerce',
+    'Loja virtual',
+    'Comércio online',
+    'Marketplace',
+    'Venda online',
+  ],
+  'Educação': [
+    'Escolas',
+    'Cursos profissionalizantes',
+    'Faculdade',
+    'Centro educacional',
+    'Curso técnico',
+  ],
+  'Empresas de Energia Solar': [
+    'Empresas de energia solar',
+    'Instalação de painéis solares',
+    'Energia fotovoltaica',
+    'Placa solar',
+    'Engenharia solar',
+  ],
+  'Engenharia': [
+    'Engenharia civil',
+    'Construtora',
+    'Empresa de engenharia',
+    'Projeto estrutural',
+    'Engenharia elétrica',
+  ],
+  'Estética e Beleza': [
+    'Salão de beleza',
+    'Barbearia',
+    'Estética',
+    'Spa',
+    'Manicure e pedicure',
+  ],
+  'Estética de Alto Padrão': [
+    'Clínica de estética premium',
+    'Estética alto padrão',
+    'Clínica de beleza',
+    'Botox e preenchimento',
+    'Harmonização facial',
+  ],
+  'Farmácias': [
+    'Farmácias',
+    'Drogarias',
+    'Farmácia de manipulação',
+    'Farmácia popular',
+    'Drogaria popular',
+  ],
+  'Guinchos': [
+    'Guinchos',
+    'Guincho 24 horas',
+    'Reboque de veículos',
+    'Assistência veicular',
+    'Guincho e reboque',
+  ],
+  'Imobiliárias': [
+    'Imobiliárias',
+    'Corretora de imóveis',
+    'Imóveis à venda',
+    'Aluguel de imóveis',
+    'Corretor de imóveis',
+  ],
+  'Manutenção de Ar-condicionado': [
+    'Manutenção de ar-condicionado',
+    'Instalação de ar-condicionado',
+    'Refrigeração e climatização',
+    'Técnico de ar-condicionado',
+    'Ar-condicionado split',
+  ],
+  'Marketing': [
+    'Agência de marketing',
+    'Marketing digital',
+    'Publicidade e propaganda',
+    'Agência de publicidade',
+    'Social media',
+  ],
+  'Oficinas Mecânicas': [
+    'Oficinas mecânicas',
+    'Mecânica automotiva',
+    'Auto center',
+    'Funilaria e pintura',
+    'Troca de óleo',
+  ],
+  'Padarias': [
+    'Padarias',
+    'Confeitaria',
+    'Panificadora',
+    'Pão artesanal',
+    'Café e padaria',
+  ],
+  'Pet Shops': [
+    'Pet shops',
+    'Veterinário',
+    'Clínica veterinária',
+    'Banho e tosa',
+    'Petshop e veterinária',
+  ],
+  'Salões de Beleza': [
+    'Salões de beleza',
+    'Cabeleireiro',
+    'Salão feminino',
+    'Coloração e corte',
+    'Salão especializado',
+  ],
+  'Tecnologia': [
+    'Empresa de tecnologia',
+    'Desenvolvimento de software',
+    'TI e informática',
+    'Assistência técnica em informática',
+    'Suporte técnico',
+  ],
+  'Outros': [
+    'Empresas locais',
+    'Serviços locais',
+    'Comércio local',
+  ],
+};
+
+function getVariacoes(nicho) {
+  return VARIACOES_NICHO[nicho] || [nicho];
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
 function sanitizar(str, maxLen = 100) {
   if (typeof str !== 'string') return '';
   return str.trim().slice(0, maxLen).replace(/[<>{}[\]\\]/g, '');
@@ -55,62 +261,50 @@ function httpsGet(url) {
   });
 }
 
-// Busca com retry automático para INVALID_REQUEST (token ainda não pronto)
-async function buscarPaginaComRetry(apiKey, pageToken, tentativas = 4) {
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?pagetoken=${pageToken}&language=pt-BR&key=${apiKey}`;
-  for (let t = 0; t < tentativas; t++) {
-    const data = await httpsGet(url);
-    if (data.status === 'OK' || data.status === 'ZERO_RESULTS') {
-      return { results: data.results || [], nextPageToken: data.next_page_token || null };
-    }
-    if (data.status === 'INVALID_REQUEST') {
-      // Token ainda não está pronto — aguarda mais e tenta de novo
-      const delay = (t + 1) * 2000; // 2s, 4s, 6s, 8s
-      console.log(`  ⏳ Token não pronto, aguardando ${delay/1000}s (tentativa ${t+1}/${tentativas})...`);
-      await new Promise(r => setTimeout(r, delay));
-      continue;
-    }
-    throw new Error(`Google Places erro: ${data.status} — ${data.error_message || ''}`);
+// Busca uma query simples, retorna resultados
+async function buscarQuery(query, cidade, estado, apiKey) {
+  const q   = encodeURIComponent(`${query} em ${cidade} ${estado} Brasil`);
+  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${q}&language=pt-BR&region=br&key=${apiKey}`;
+  const data = await httpsGet(url);
+  if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+    console.warn(`  ⚠️ Query "${query}": ${data.status}`);
+    return [];
   }
-  // Se esgotou as tentativas, retorna vazio em vez de lançar erro
-  console.warn('  ⚠️ Token de paginação não ficou pronto após todas as tentativas, parando paginação');
-  return { results: [], nextPageToken: null };
+  return data.results || [];
 }
 
+// Busca múltiplas variações e deduplica por placeId
 async function buscarEmpresas(nicho, cidade, estado, maxLeads, apiKey) {
-  const todos = [];
-  const maxPaginas = Math.ceil(maxLeads / 20);
+  const variacoes  = getVariacoes(nicho);
+  const vistos     = new Set(); // placeIds já vistos — evita duplicatas entre variações
+  const todos      = [];
 
-  // Página 1 — busca normal
-  const query = encodeURIComponent(`${nicho} em ${cidade} ${estado} Brasil`);
-  const url1  = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${query}&language=pt-BR&region=br&key=${apiKey}`;
-  const data1 = await httpsGet(url1);
+  console.log(`  🔀 ${variacoes.length} variações de busca para "${nicho}"`);
 
-  if (data1.status !== 'OK' && data1.status !== 'ZERO_RESULTS') {
-    throw new Error(`Google Places erro: ${data1.status} — ${data1.error_message || ''}`);
+  for (let v = 0; v < variacoes.length; v++) {
+    if (todos.length >= maxLeads) break;
+
+    const variacao = variacoes[v];
+    console.log(`  🔎 Variação ${v+1}/${variacoes.length}: "${variacao}"`);
+
+    // Delay entre variações para não sobrecarregar a API
+    if (v > 0) await new Promise(r => setTimeout(r, 500));
+
+    const resultados = await buscarQuery(variacao, cidade, estado, apiKey);
+    let novosNestaVariacao = 0;
+
+    for (const lugar of resultados) {
+      if (!lugar.place_id || vistos.has(lugar.place_id)) continue;
+      vistos.add(lugar.place_id);
+      todos.push(lugar);
+      novosNestaVariacao++;
+      if (todos.length >= maxLeads) break;
+    }
+
+    console.log(`     → ${resultados.length} resultados, ${novosNestaVariacao} únicos novos (total: ${todos.length})`);
   }
 
-  todos.push(...(data1.results || []));
-  console.log(`  📄 Página 1: ${data1.results?.length || 0} resultados (total: ${todos.length})`);
-
-  let pageToken = data1.next_page_token || null;
-
-  // Páginas 2-5 com retry
-  for (let pagina = 1; pagina < maxPaginas; pagina++) {
-    if (!pageToken || todos.length >= maxLeads) break;
-
-    // Delay inicial obrigatório antes de usar o token (Google recomenda mínimo 2s)
-    await new Promise(r => setTimeout(r, 3000));
-
-    const { results, nextPageToken } = await buscarPaginaComRetry(apiKey, pageToken);
-    todos.push(...results);
-    console.log(`  📄 Página ${pagina + 1}: ${results.length} resultados (total: ${todos.length})`);
-
-    pageToken = nextPageToken;
-    if (results.length === 0) break;
-  }
-
-  return todos.slice(0, maxLeads);
+  return todos;
 }
 
 async function buscarDetalhes(placeId, apiKey) {
@@ -135,19 +329,19 @@ function formatarWhatsApp(tel) {
   return '55' + semPais;
 }
 
-// ID por placeId — imutável, único globalmente, elimina duplicatas
 function gerarIdDoc(uid, placeId) {
   const hash = crypto.createHash('md5').update(`${uid}_${placeId}`).digest('hex');
   return `lead_${hash}`;
 }
 
-// ID legado (nome+cidade) — para detectar duplicatas antigas
+// ID legado — para migrar leads antigos criados por nome+cidade
 function gerarIdLegado(uid, nome, cidade) {
   const raw  = `${uid}_${nome}_${cidade}`.toLowerCase();
   const hash = crypto.createHash('md5').update(raw).digest('hex');
   return `lead_${hash}`;
 }
 
+// ── Handler principal ─────────────────────────────────────────────
 exports.buscarLeads = onRequest(
   {
     secrets: [googleMapsKey],
@@ -204,7 +398,7 @@ exports.buscarLeads = onRequest(
 
       const lugares = await buscarEmpresas(nicho, cidade, estado, maxLeads, apiKey);
       const meta    = lugares.length;
-      console.log(`📍 ${meta} resultados obtidos, processando...`);
+      console.log(`📍 ${meta} lugares únicos encontrados, salvando...`);
 
       if (meta === 0) {
         return res.status(200).json({
@@ -219,10 +413,7 @@ exports.buscarLeads = onRequest(
 
       for (let i = 0; i < meta; i++) {
         const lugar = lugares[i];
-        if (!lugar.name || !lugar.place_id) {
-          console.warn(`  ⚠️ [${i+1}] Sem nome ou place_id, pulando`);
-          continue;
-        }
+        if (!lugar.name || !lugar.place_id) continue;
 
         try {
           const detalhes    = await buscarDetalhes(lugar.place_id, apiKey);
@@ -251,28 +442,25 @@ exports.buscarLeads = onRequest(
           };
 
           if (snapNovo.exists) {
-            // ID novo já existe — só atualiza contato, preserva stage/notas
             await docRefNovo.update(dadosContato);
             atualizados++;
             console.log(`  🔄 [${i+1}/${meta}] Já existe: ${lugar.name}`);
 
           } else if (snapLegado.exists) {
-            // Existe com ID legado — migra para o novo ID e apaga o legado
+            // Migra lead legado para novo ID, preserva stage/notas/valor
             const dadosLegado = snapLegado.data();
             await docRefNovo.set({
               ...dadosLegado,
               ...dadosContato,
-              // preserva stage/notas/valor do legado
-              stage:  dadosLegado.stage  || 'new',
-              notes:  dadosLegado.notes  || '',
-              valor:  dadosLegado.valor  || 0,
+              stage: dadosLegado.stage || 'new',
+              notes: dadosLegado.notes || '',
+              valor: dadosLegado.valor || 0,
             });
             await docRefLegado.delete();
             atualizados++;
-            console.log(`  🔀 [${i+1}/${meta}] Migrado (legado→novo): ${lugar.name}`);
+            console.log(`  🔀 [${i+1}/${meta}] Migrado: ${lugar.name}`);
 
           } else {
-            // Lead novo — cria
             await docRefNovo.set({
               userId:         uid,
               companyName:    lugar.name,
@@ -303,7 +491,7 @@ exports.buscarLeads = onRequest(
 
       let message;
       if (novos === 0 && atualizados > 0) {
-        message = `Todos os ${atualizados} leads de "${nicho}" em "${cidade}" já estão no seu CRM. Tente outra cidade ou nicho.`;
+        message = `Todos os leads de "${nicho}" em "${cidade}" já estão no seu CRM. Tente outra cidade.`;
       } else if (novos > 0 && atualizados > 0) {
         message = `${novos} novos leads adicionados! (${atualizados} já existiam no CRM)`;
       } else {
