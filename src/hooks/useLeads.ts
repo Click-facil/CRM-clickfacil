@@ -10,13 +10,22 @@ interface UseLeadsProps {
   territory: string;
 }
 
+// Normaliza nome para comparação — remove espaços extras, lowercase, sem acentos
+function normalizarNome(nome: string): string {
+  return nome
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
 export const useLeads = ({ territory }: UseLeadsProps) => {
   const [allLeads, setAllLeads]     = useState<Lead[]>([]);
   const [loading, setLoading]       = useState(true);
   const [currentUid, setCurrentUid] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Recusados ficam no pipeline — só no_opportunity fica fora
   const leads                = allLeads.filter(l => l.stage !== 'no_opportunity');
   const leadsSemOportunidade = allLeads.filter(l => l.stage === 'no_opportunity');
 
@@ -91,6 +100,15 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
     }
   };
 
+  const updateLeadLabel = async (id: string, label: string, labelColor: string) => {
+    const ok = await firebaseDB.updateLead(id, { label, labelColor } as any);
+    if (ok) {
+      setAllLeads(prev => prev.map(l =>
+        l.id === id ? { ...l, label, labelColor, updatedAt: new Date() } as any : l
+      ));
+    }
+  };
+
   const updateLeadStage = async (id: string, stage: LeadStatus) => {
     const ok = await firebaseDB.updateLead(id, { stage });
     if (ok) {
@@ -123,9 +141,7 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
   };
 
   const arquivarSemOportunidade = async () => {
-    const paraArquivar = allLeads.filter(
-      l => l.stage === 'new' && l.websiteQuality === 'good'
-    );
+    const paraArquivar = allLeads.filter(l => l.stage === 'new' && l.websiteQuality === 'good');
     for (const lead of paraArquivar) {
       await firebaseDB.updateLead(lead.id, { stage: 'no_opportunity' as LeadStatus });
     }
@@ -134,10 +150,7 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
         ? { ...l, stage: 'no_opportunity' as LeadStatus }
         : l
     ));
-    toast({
-      title: `${paraArquivar.length} leads arquivados`,
-      description: 'Leads com site profissional movidos para o arquivo.',
-    });
+    toast({ title: `${paraArquivar.length} leads arquivados`, description: 'Leads com site profissional movidos para o arquivo.' });
     return paraArquivar.length;
   };
 
@@ -157,11 +170,41 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
       await firebaseDB.deleteLead(id);
     }
     setAllLeads(prev => prev.filter(l => l.stage !== 'no_opportunity'));
+    toast({ title: `${ids.length} leads apagados`, description: 'Todos os leads sem oportunidade foram removidos.', variant: 'destructive' });
+  };
+
+  // ── Import CSV com deduplicação por nome ─────────────────────────
+  // Cruza companyName normalizado com leads existentes — não sobe se já existe
+  const importarLeadsCSV = async (novosLeads: Partial<Lead>[]): Promise<{ importados: number; duplicatas: number }> => {
+    const nomesExistentes = new Set(allLeads.map(l => normalizarNome(l.companyName)));
+    const paraImportar: Partial<Lead>[] = [];
+    let duplicatas = 0;
+
+    for (const lead of novosLeads) {
+      if (!lead.companyName?.trim()) continue;
+      const nomeNorm = normalizarNome(lead.companyName);
+      if (nomesExistentes.has(nomeNorm)) {
+        duplicatas++;
+      } else {
+        paraImportar.push(lead);
+        nomesExistentes.add(nomeNorm); // evita duplicata dentro do próprio CSV
+      }
+    }
+
+    const importados = await firebaseDB.importLeads(paraImportar);
+    await carregarLeads();
+
+    const msg = duplicatas > 0
+      ? `${importados} leads importados. ${duplicatas} duplicatas ignoradas.`
+      : `${importados} leads importados com sucesso.`;
+
     toast({
-      title: `${ids.length} leads apagados`,
-      description: 'Todos os leads sem oportunidade foram removidos.',
-      variant: 'destructive',
+      title: '✅ Importação concluída',
+      description: msg,
+      variant: duplicatas > 0 ? 'default' : 'default',
     });
+
+    return { importados, duplicatas };
   };
 
   const getLeadStats = () => {
@@ -189,12 +232,14 @@ export const useLeads = ({ territory }: UseLeadsProps) => {
     loading,
     addLead,
     updateLead,
+    updateLeadLabel,
     updateLeadStage,
     deleteLead,
     arquivarLead,
     arquivarSemOportunidade,
     restaurarLead,
     deletarTodosSemOportunidade,
+    importarLeadsCSV,
     getLeadStats,
     recarregarLeads,
   };

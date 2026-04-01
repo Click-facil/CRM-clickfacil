@@ -5,14 +5,16 @@ import {
   Building2, Globe, AlertTriangle, XCircle,
   MessageCircle, Mail, Instagram, MapPin,
   MoreVertical, Trash2, Eye, Phone, ExternalLink,
-  TrendingUp, Calendar, Archive
+  TrendingUp, Calendar, Archive, ChevronRight, Tag, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger,
+  DropdownMenuSubContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { useState } from 'react';
 
 interface LeadCardProps {
   lead: Lead;
@@ -20,6 +22,22 @@ interface LeadCardProps {
   onStageChange: (stage: Lead['stage']) => void;
   onDelete: () => void;
   onArchive: () => void;
+  onLabelChange?: (label: string, color: string) => void;
+}
+
+// Calcula websiteQuality em tempo real a partir da URL — nunca usa dado desatualizado do Firestore
+function calcQuality(url?: string): 'none' | 'poor' | 'good' {
+  if (!url || !url.trim()) return 'none';
+  const lower = url.toLowerCase();
+  const redesSociais = [
+    'instagram.com', 'facebook.com', 'fb.com', 'tiktok.com',
+    'twitter.com', 'x.com', 'linkedin.com', 'youtube.com',
+    'wa.me', 'whatsapp',
+  ];
+  if (redesSociais.some(r => lower.includes(r))) return 'poor';
+  const ruins = ['linktree', 'linktr.ee', 'bio.link', 'beacons.ai', 'sites.google.com', 'wixsite.com', 'blogspot.com'];
+  if (ruins.some(r => lower.includes(r))) return 'poor';
+  return 'good';
 }
 
 const qualityConfig = {
@@ -43,9 +61,36 @@ const qualityConfig = {
   },
 };
 
-export function LeadCard({ lead, onView, onStageChange, onDelete, onArchive }: LeadCardProps) {
-  const qc    = qualityConfig[lead.websiteQuality || 'none'];
-  const QIcon = qc.icon;
+// Etiquetas pré-definidas — usuário escolhe nome e cor
+const LABEL_OPTIONS = [
+  { name: 'Quente 🔥',        color: 'bg-red-500' },
+  { name: 'Frio ❄️',          color: 'bg-blue-400' },
+  { name: 'VIP ⭐',           color: 'bg-yellow-500' },
+  { name: 'Aguardando ⏳',    color: 'bg-orange-400' },
+  { name: 'Interessado 👍',   color: 'bg-green-500' },
+  { name: 'Sem resposta 🔇',  color: 'bg-gray-400' },
+  { name: 'Retornar 📞',      color: 'bg-purple-500' },
+  { name: 'Prioritário 🎯',   color: 'bg-pink-500' },
+];
+
+const STAGE_OPTIONS = [
+  { id: 'new',           label: '🔵 Novos Leads' },
+  { id: 'contacted',     label: '🟣 Contatados' },
+  { id: 'proposal_sent', label: '🟠 Proposta Enviada' },
+  { id: 'negotiation',   label: '🟡 Em Negociação' },
+  { id: 'won',           label: '🟢 Fechado' },
+  { id: 'lost',          label: '🔴 Perdido' },
+  { id: 'refused',       label: '⚫ Recusado' },
+];
+
+export function LeadCard({ lead, onView, onStageChange, onDelete, onArchive, onLabelChange }: LeadCardProps) {
+  const [customLabel, setCustomLabel] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+
+  // Qualidade calculada em tempo real — ignora websiteQuality do Firestore
+  const quality = calcQuality(lead.website);
+  const qc      = qualityConfig[quality];
+  const QIcon   = qc.icon;
 
   const stop    = (fn: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); fn(); };
   const openUrl = (url: string) => window.open(url.startsWith('http') ? url : `https://${url}`, '_blank');
@@ -57,6 +102,23 @@ export function LeadCard({ lead, onView, onStageChange, onDelete, onArchive }: L
     if (confirm(`Excluir ${lead.companyName}?`)) onDelete();
   };
 
+  const handleLabelSelect = (name: string, color: string) => {
+    onLabelChange?.(name, color);
+  };
+
+  const handleCustomLabel = () => {
+    if (customLabel.trim()) {
+      onLabelChange?.(customLabel.trim(), 'bg-indigo-500');
+      setCustomLabel('');
+      setShowCustomInput(false);
+    }
+  };
+
+  const handleRemoveLabel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onLabelChange?.('', '');
+  };
+
   const nomeExibido = lead.companyName?.trim() || `Lead #${lead.id.slice(0, 8)}`;
 
   return (
@@ -64,6 +126,16 @@ export function LeadCard({ lead, onView, onStageChange, onDelete, onArchive }: L
       onClick={onView}
       className="bg-card rounded-xl border border-border hover:border-primary/50 hover:shadow-md dark:hover:shadow-primary/5 transition-all duration-200 cursor-pointer group overflow-hidden"
     >
+      {/* Etiqueta colorida no topo — se existir */}
+      {(lead as any).label && (
+        <div className={cn('px-3 py-1 flex items-center justify-between text-white text-xs font-medium', (lead as any).labelColor || 'bg-indigo-500')}>
+          <span className="flex items-center gap-1"><Tag className="w-3 h-3" />{(lead as any).label}</span>
+          <button onClick={handleRemoveLabel} className="opacity-70 hover:opacity-100">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="p-4 pb-3">
         <div className="flex items-start justify-between gap-2">
@@ -94,33 +166,77 @@ export function LeadCard({ lead, onView, onStageChange, onDelete, onArchive }: L
                 <MoreVertical className="w-4 h-4 text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem onClick={onView}>
+            <DropdownMenuContent align="end" className="w-56">
+
+              <DropdownMenuItem onClick={stop(onView)}>
                 <Eye className="w-4 h-4 mr-2" />Ver Detalhes
               </DropdownMenuItem>
+
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={stop(() => onStageChange('new'))}>
-                🔵 Mover → Novos Líderes
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={stop(() => onStageChange('contacted'))}>
-                🟣 Mover → Contatados
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={stop(() => onStageChange('proposal_sent'))}>
-                🟠 Mover → Proposta Enviada
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={stop(() => onStageChange('negotiation'))}>
-                🟡 Mover → Em Negociação
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={stop(() => onStageChange('won'))}>
-                🟢 Marcar como Fechado
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={stop(() => onStageChange('lost'))}>
-                🔴 Marcar como Perdido
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={stop(() => onStageChange('refused'))}>
-                ⚫ Marcar como Recusado
-              </DropdownMenuItem>
+
+              {/* Submenu Mover — todos os estágios */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger onClick={e => e.stopPropagation()}>
+                  <ChevronRight className="w-4 h-4 mr-2" />Mover para...
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {STAGE_OPTIONS.filter(s => s.id !== lead.stage).map(s => (
+                    <DropdownMenuItem key={s.id} onClick={stop(() => onStageChange(s.id as Lead['stage']))}>
+                      {s.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+
+              {/* Submenu Etiqueta */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger onClick={e => e.stopPropagation()}>
+                  <Tag className="w-4 h-4 mr-2" />Etiqueta
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-52">
+                  {LABEL_OPTIONS.map(opt => (
+                    <DropdownMenuItem
+                      key={opt.name}
+                      onClick={stop(() => handleLabelSelect(opt.name, opt.color))}
+                      className="gap-2"
+                    >
+                      <span className={cn('w-3 h-3 rounded-full flex-shrink-0', opt.color)} />
+                      {opt.name}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={e => { e.stopPropagation(); e.preventDefault(); setShowCustomInput(true); }}
+                    className="gap-2"
+                  >
+                    <span className="w-3 h-3 rounded-full bg-indigo-500 flex-shrink-0" />
+                    Personalizada...
+                  </DropdownMenuItem>
+                  {showCustomInput && (
+                    <div className="px-2 py-1" onClick={e => e.stopPropagation()}>
+                      <input
+                        autoFocus
+                        className="w-full text-xs border rounded px-2 py-1 bg-background"
+                        placeholder="Nome da etiqueta"
+                        value={customLabel}
+                        onChange={e => setCustomLabel(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleCustomLabel(); }}
+                      />
+                    </div>
+                  )}
+                  {(lead as any).label && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={stop(() => onLabelChange?.('', ''))} className="text-destructive">
+                        <X className="w-3 h-3 mr-2" />Remover etiqueta
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+
               <DropdownMenuSeparator />
+
               <DropdownMenuItem onClick={stop(onArchive)}>
                 <Archive className="w-4 h-4 mr-2 text-muted-foreground" />
                 Arquivar (Sem Oportunidade)
@@ -133,7 +249,7 @@ export function LeadCard({ lead, onView, onStageChange, onDelete, onArchive }: L
         </div>
       </div>
 
-      {/* Status do site */}
+      {/* Status do site — calculado em tempo real */}
       <div className={cn('px-4 py-2 border-y text-xs font-medium flex items-center gap-2', qc.bg)}>
         <QIcon className={cn('w-3.5 h-3.5 flex-shrink-0', qc.className)} />
         <span className={qc.className}>{qc.label}</span>
@@ -160,7 +276,7 @@ export function LeadCard({ lead, onView, onStageChange, onDelete, onArchive }: L
         )}
       </div>
 
-      {/* Botões */}
+      {/* Botões de ação rápida */}
       <div className="px-4 pb-4 grid grid-cols-2 gap-2">
         {(lead.whatsapp || lead.linkWhatsApp) && (
           <button onClick={stop(() => openUrl(lead.linkWhatsApp || `https://wa.me/${lead.whatsapp}`))}
@@ -204,4 +320,4 @@ export function LeadCard({ lead, onView, onStageChange, onDelete, onArchive }: L
       </div>
     </div>
   );
-}
+} 
