@@ -126,7 +126,14 @@ function AppContent({ user }: { user: User }) {
       <div className="md:ml-64 pt-14 md:pt-0">
         {/* Topbar */}
         <div className="sticky top-0 z-20 px-4 md:px-8 py-2 md:py-3 border-b bg-card/95 backdrop-blur-sm flex items-center justify-between gap-3 flex-wrap">
-          <TerritoryFilter territory={territory} onTerritoryChange={setTerritory} />
+          <div className="flex items-center gap-3">
+            {activeTab === 'dashboard'        && <><h1 className="text-base font-bold leading-none">Painel</h1><TerritoryFilter territory={territory} onTerritoryChange={setTerritory} /></>}
+            {activeTab === 'pipeline'         && <h1 className="text-base font-bold leading-none">Pipeline de Vendas</h1>}
+            {activeTab === 'scripts'          && <h1 className="text-base font-bold leading-none">Roteiros de Mensagens</h1>}
+            {activeTab === 'prospecting'      && <h1 className="text-base font-bold leading-none">Prospecção Automática</h1>}
+            {activeTab === 'settings'         && <h1 className="text-base font-bold leading-none">Configurações</h1>}
+            {activeTab === 'sem_oportunidade' && <h1 className="text-base font-bold leading-none">Arquivo — Sem Oportunidade</h1>}
+          </div>
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-sm text-muted-foreground hidden sm:block truncate max-w-[180px]">
               {user.email}

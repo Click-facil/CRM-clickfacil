@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, FileText, Search, Settings, Menu, X, Sun, Moon, Archive } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Search, Settings, Menu, X, Sun, Moon } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -41,9 +41,7 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0 }: Sidebar
   const Logo = () => (
     <div className="mb-5">
       <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-          <img src="/ponteiro_clickfacil.ico" alt="Click Fácil" className="w-5 h-5" />
-        </div>
+        <img src="/ponteiro_clickfacil.ico" alt="Click Fácil" className="w-7 h-7 flex-shrink-0" />
         <div>
           <h1 className="font-bold text-base leading-tight">Click Fácil</h1>
           <p className="text-[10px] text-muted-foreground leading-tight">CRM de Prospecção</p>
@@ -71,26 +69,6 @@ export function Sidebar({ activeTab, onTabChange, arquivadosCount = 0 }: Sidebar
           </button>
         );
       })}
-
-      <div className="pt-3 pb-0.5">
-        <p className="text-[10px] text-muted-foreground/50 px-3 uppercase tracking-wider font-semibold">Arquivo</p>
-      </div>
-
-      <button onClick={() => handleTabChange('sem_oportunidade')}
-        className={cn(
-          'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-150 text-sm',
-          activeTab === 'sem_oportunidade'
-            ? 'bg-muted text-foreground font-medium'
-            : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-        )}>
-        <Archive className="w-4 h-4 flex-shrink-0" />
-        <span>Sem Oportunidade</span>
-        {arquivadosCount > 0 && (
-          <span className="ml-auto text-[10px] bg-muted-foreground/20 text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">
-            {arquivadosCount}
-          </span>
-        )}
-      </button>
     </nav>
   );
 

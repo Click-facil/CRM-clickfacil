@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MapPin } from 'lucide-react';
 import { firebaseDB } from '@/lib/firebaseDB';
 
 interface TerritoryFilterProps {
@@ -24,19 +23,16 @@ export function TerritoryFilter({ territory, onTerritoryChange }: TerritoryFilte
   if (territorios.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-2">
-      <MapPin className="w-4 h-4 text-muted-foreground" />
-      <Select value={territory} onValueChange={onTerritoryChange}>
-        <SelectTrigger className="w-[180px] h-8 text-sm">
-          <SelectValue placeholder="Todos os territórios" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos os territórios</SelectItem>
-          {territorios.map(t => (
-            <SelectItem key={t} value={t}>{t}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select value={territory} onValueChange={onTerritoryChange}>
+      <SelectTrigger className="w-[180px] h-8 text-sm">
+        <SelectValue placeholder="Todos os territórios" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">Todos os territórios</SelectItem>
+        {territorios.map(t => (
+          <SelectItem key={t} value={t}>{t}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

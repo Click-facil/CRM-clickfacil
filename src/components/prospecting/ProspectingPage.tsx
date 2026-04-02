@@ -60,10 +60,6 @@ export function ProspectingPage({ onLeadsAdded, onGoToPipeline }: ProspectingPag
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold">Prospecção Automática</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Encontre leads no Google Maps com um clique</p>
-      </div>
 
       <Card>
         <CardHeader className="pb-3">

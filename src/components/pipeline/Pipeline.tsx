@@ -2,7 +2,7 @@
 
 import { Lead, PIPELINE_COLUMNS, LeadStatus } from '@/types/lead';
 import { LeadCard } from './LeadCard';
-import { Plus, Search, Archive } from 'lucide-react';
+import { Plus, Search, Archive, BarChart2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRef, useState, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,7 @@ export function Pipeline({
   const [draggedId, setDraggedId]   = useState<string | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
 
+  const [statsOpen, setStatsOpen] = useState(false);
   const isScrolling  = useRef(false);
   const scrollStartX = useRef(0);
   const scrollLeft0  = useRef(0);
@@ -81,33 +82,48 @@ export function Pipeline({
 
       {/* Header compacto */}
       <div className="flex-shrink-0 mb-3">
-        <div className="flex items-center justify-between mb-2 gap-2">
-          <div>
-            <h1 className="text-lg font-bold leading-tight">Pipeline de Vendas</h1>
-            <p className="text-xs text-muted-foreground">{filtered.length} leads</p>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input placeholder="Buscar empresa ou nicho..." value={search}
+              onChange={e => setSearch(e.target.value)} className="pl-8 h-8 text-sm" />
           </div>
-          <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="sm" onClick={onGoToSemOportunidade}
-              className="gap-1.5 text-xs h-7 px-2.5 text-muted-foreground hover:text-foreground">
-              <Archive className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sem Oportunidade</span>
-              {leadsSemOportunidade.length > 0 && (
-                <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-full">
-                  {leadsSemOportunidade.length}
-                </span>
-              )}
-            </Button>
-            <Button onClick={onAddLead} size="sm" className="gap-1.5 text-xs h-7 px-2.5">
-              <Plus className="w-3.5 h-3.5" /><span className="hidden sm:inline">Novo Lead</span>
-            </Button>
-          </div>
+
+          <Button onClick={onAddLead} size="sm" className="gap-1.5 text-xs h-8 px-2.5 flex-shrink-0">
+            <Plus className="w-3.5 h-3.5" /><span className="hidden sm:inline">Novo Lead</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setStatsOpen(v => !v)}
+            className={cn('gap-1.5 text-xs h-8 px-2.5 flex-shrink-0', statsOpen && 'bg-muted')}>
+            <BarChart2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Estatísticas</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={onGoToSemOportunidade}
+            className="gap-1.5 text-xs h-8 px-2.5 text-muted-foreground hover:text-foreground flex-shrink-0">
+            <Archive className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sem Oportunidade</span>
+            {leadsSemOportunidade.length > 0 && (
+              <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-full">
+                {leadsSemOportunidade.length}
+              </span>
+            )}
+          </Button>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input placeholder="Buscar empresa ou nicho..." value={search}
-            onChange={e => setSearch(e.target.value)} className="pl-8 h-8 text-sm" />
-        </div>
+        {statsOpen && (
+          <div className="grid grid-cols-4 gap-2 mb-2 p-3 rounded-lg border bg-muted/30">
+            {[
+              { label: 'Total de Leads',  value: filtered.length,                                                                                                    cls: 'text-foreground'  },
+              { label: 'Oportunidades',   value: filtered.filter(l => l.websiteQuality === 'none' || l.websiteQuality === 'poor').length,                             cls: 'text-amber-500'   },
+              { label: 'Valor Total',     value: `R$ ${(stageValue(filtered)/1000).toFixed(1)}k`,                                                                    cls: 'text-emerald-500' },
+              { label: 'Conversão',       value: `${filtered.length > 0 ? ((filtered.filter(l=>l.stage==='won').length/filtered.length)*100).toFixed(1) : '0.0'}%`, cls: 'text-primary'     },
+            ].map(s => (
+              <div key={s.label} className="text-center">
+                <div className={cn('text-lg font-bold', s.cls)}>{s.value}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {draggedLead && (
           <p className="text-[11px] text-primary text-center mt-1.5 animate-pulse font-medium">
@@ -202,20 +218,6 @@ export function Pipeline({
         </div>
       </div>
 
-      {/* Footer stats compacto */}
-      <div className="flex-shrink-0 grid grid-cols-4 gap-2 mt-2 pt-2 border-t">
-        {[
-          { label: 'Total',         value: filtered.length,                                                                       cls: 'text-foreground'  },
-          { label: 'Oportunidades', value: filtered.filter(l => l.websiteQuality === 'none' || l.websiteQuality === 'poor').length, cls: 'text-amber-500'   },
-          { label: 'Valor Total',   value: `R$ ${(stageValue(filtered)/1000).toFixed(0)}k`,                                       cls: 'text-emerald-500' },
-          { label: 'Conversão',     value: `${filtered.length > 0 ? ((filtered.filter(l=>l.stage==='won').length/filtered.length)*100).toFixed(1) : '0.0'}%`, cls: 'text-primary' },
-        ].map(s => (
-          <div key={s.label} className="text-center">
-            <div className={cn('text-base font-bold', s.cls)}>{s.value}</div>
-            <div className="text-[10px] text-muted-foreground">{s.label}</div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

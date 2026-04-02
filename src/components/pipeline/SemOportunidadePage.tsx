@@ -1,7 +1,7 @@
 // src/components/pipeline/SemOportunidadePage.tsx
 
 import { Lead } from '@/types/lead';
-import { Globe, Trash2, RotateCcw, AlertTriangle, Archive } from 'lucide-react';
+import { Globe, Trash2, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
@@ -35,16 +35,10 @@ export function SemOportunidadePage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Archive className="w-5 h-5 text-muted-foreground" />
-            <h2 className="text-xl font-bold">Arquivo — Sem Oportunidade</h2>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {leads.length} lead{leads.length !== 1 ? 's' : ''} arquivado{leads.length !== 1 ? 's' : ''}.
-            Estes leads existem no banco para evitar duplicatas nas próximas buscas.
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {leads.length} lead{leads.length !== 1 ? 's' : ''} arquivado{leads.length !== 1 ? 's' : ''}.
+          Estes leads existem no banco para evitar duplicatas nas próximas buscas.
+        </p>
 
         {leads.length > 0 && (
           <Button

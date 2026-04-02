@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 interface ScriptsPageProps {
   scripts: Script[];
   onAddScript: (script: Omit<Script, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  onUpdateScript: (id: string, updates: Partial<Script>) => void;
+  onUpdateScript: (id: string, updates:   Partial<Script>) => void;
   onDeleteScript: (id: string) => void;
 }
 
@@ -185,23 +185,18 @@ export function ScriptsPage({ scripts, onAddScript, onUpdateScript, onDeleteScri
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold">Roteiros de Mensagens</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Templates e gerador de proposta</p>
-        </div>
-        <Button onClick={handleNew} size="sm" className="gap-1.5 h-7 text-xs px-2.5">
-          <Plus className="w-3.5 h-3.5" />Novo Roteiro
-        </Button>
-      </div>
-
       <div>
         <h2 className="text-sm font-semibold mb-2.5">📄 Proposta Comercial</h2>
         <PropostaGenerator />
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold mb-2.5">💼 Meus Roteiros</h2>
+        <div className="flex items-center justify-between mb-2.5">
+          <h2 className="text-sm font-semibold">💼 Meus Roteiros</h2>
+          <Button onClick={handleNew} size="sm" className="gap-1.5 h-7 text-xs px-2.5">
+            <Plus className="w-3.5 h-3.5" />Novo Roteiro
+          </Button>
+        </div>
         {scripts.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-8 text-center">

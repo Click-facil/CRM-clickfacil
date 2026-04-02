@@ -91,10 +91,6 @@ export function DataSettings({ onReloadLeads, totalLeads }: DataSettingsProps) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold">Configurações</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Gerencie seus dados e sincronização</p>
-      </div>
 
       {/* Importar CSV */}
       <Card>
